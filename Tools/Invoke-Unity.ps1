@@ -11,7 +11,7 @@ All logs/results are unique files under Builds/Logs. No editor is downloaded her
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('CreateProject', 'Compile', 'Generate', 'DemoGenerate', 'EditModeTests', 'PlayModeTests', 'Build', 'DemoBuild', 'SmokeAutomation')]
+    [ValidateSet('CreateProject', 'Compile', 'Generate', 'DemoGenerate', 'ArtPreview', 'EditModeTests', 'PlayModeTests', 'Build', 'DemoBuild', 'SmokeAutomation')]
     [string]$Action,
     [string]$EditorPath,
     [ValidateRange(30, 7200)]
@@ -126,6 +126,7 @@ try {
                 'Generate' { 'GoldCamp.Editor.M0Setup.CreateScene' }
                 'Build' { 'GoldCamp.Editor.M0Build.BuildWindows' }
                 'DemoGenerate' { 'GoldCamp.Demo.Editor.DemoSetup.Generate' }
+                'ArtPreview' { 'GoldCamp.Demo.Editor.CampArtPreview.Render' }
                 'DemoBuild' { 'GoldCamp.Demo.Editor.DemoSetup.BuildWindows' }
                 'SmokeAutomation' { 'GoldCamp.Editor.M0Automation.Run' }
             }

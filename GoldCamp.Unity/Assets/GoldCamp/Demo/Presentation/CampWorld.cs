@@ -248,7 +248,7 @@ namespace GoldCamp.Demo
 
             Quaternion rotation = Quaternion.identity;
             if (place == ItemPlace.Hand)
-                GetHoldPose(ownerId, position, host, out position, out rotation);
+                GetHoldPose(ownerId, kind, position, host, out position, out rotation);
             if (place == ItemPlace.Vehicle)
             {
                 var car = host ? Session.Authority.State.Vehicle : Session.View.Vehicle;
@@ -296,26 +296,31 @@ namespace GoldCamp.Demo
             visual.Version = version;
         }
 
-        private void GetHoldPose(string ownerId, Vector3 fallback, bool host, out Vector3 position, out Quaternion rotation)
+        private void GetHoldPose(string ownerId, ItemKind kind, Vector3 fallback, bool host, out Vector3 position, out Quaternion rotation)
         {
             position = fallback;
             rotation = Quaternion.identity;
             float yaw;
             Vector3 feet;
+            bool climbing;
             if (host && _hostPlayers.TryGetValue(ownerId, out CampPlayer player))
             {
                 feet = player.Position;
                 yaw = player.Yaw;
+                climbing = !string.IsNullOrEmpty(player.ClimbingLadderId);
             }
             else if (!host && _clientPlayers.TryGetValue(ownerId, out PublicMiner miner))
             {
                 feet = miner.Position;
                 yaw = miner.Yaw;
+                climbing = !string.IsNullOrEmpty(miner.ClimbingLadderId);
             }
             else
                 return;
-            rotation = Quaternion.Euler(0f, yaw, 0f);
-            position = feet + rotation * Vector3.forward * 1.15f + Vector3.up;
+            rotation = Quaternion.Euler(0f, climbing ? 0 : yaw, 0f);
+            // Match the articulated carry grips. This is presentation only; the
+            // authority still owns drop/throw position, asset ID and ownership.
+            position = feet + rotation * CampMinerModel.CarryLocalPosition(kind, climbing);
         }
 
         private ItemVisual CreateOre(string id, ItemKind kind)
@@ -341,6 +346,15 @@ namespace GoldCamp.Demo
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             body.interpolation = RigidbodyInterpolation.None;
             IgnoreExistingMiners(collider);
+
+            string modelKey = kind == ItemKind.RawStone ? "RawClosed" : heavy ? "HeavyOre" :
+                kind == ItemKind.Gold ? "GoldOre" : kind == ItemKind.Iron ? "IronOre" : "StoneOre";
+            var sample = CampArtSet.Spawn(modelKey, root.transform);
+            if (sample != null)
+            {
+                sample.name = "Sample ore visual";
+                return new ItemVisual { Root = root, Body = body, Collider = collider, HeldTrigger = heldTrigger, Kind = kind };
+            }
 
             uint shape = 2166136261;
             foreach (char letter in id)
@@ -408,10 +422,23 @@ namespace GoldCamp.Demo
         {
             if(!_items.TryGetValue(id,out var item)||item.RevealStage==stage)return;
             item.RevealStage=stage;
+            var sample = item.Root.transform.Find("Sample ore visual");
+            if (sample != null)
+            {
+                // Only the public reveal stage/core can select a visible cut surface.
+                // The window is deliberately a neutral stone inspection patch.
+                string key = CampArtSet.RawModelKey(stage, core);
+                var replacement = CampArtSet.Spawn(key, item.Root.transform);
+                if (replacement != null) {
+                    sample.gameObject.SetActive(false); Destroy(sample.gameObject);
+                    replacement.name = "Sample ore visual";
+                }
+                return;
+            }
             var old=item.Root.transform.Find("Raw revealed surface");
             if(old!=null){old.gameObject.SetActive(false);Destroy(old.gameObject);}
             if(stage==0)return;
-            int material=stage==1?(windowBand==3?3:windowBand==2?2:1):core=="gold"?3:core=="iron"?2:1;
+            int material=stage==1?(windowBand==3?3:windowBand==2?2:1):(core=="gold"||core=="rich_gold")?3:core=="iron"?2:1;
             if(stage>=2)
                 foreach(var r in item.Root.GetComponentsInChildren<Renderer>())
                     if(r.name=="Stone shell"||r.name=="Broken face"||r.name=="Rough unopened crust")r.enabled=false;
@@ -430,6 +457,9 @@ namespace GoldCamp.Demo
                 {
                     GameObject root = NewRoot("Ladder " + ladder.Id, "ladder", ladder.Id);
                     float length = rules.CellSize + .15f;
+                    var sample = CampArtSet.Spawn("Ladder", root.transform);
+                    if (sample != null) sample.localScale = new Vector3(1, length / 2.15f, 1);
+                    else {
                     foreach (float side in new[] { -.34f, .34f })
                         Piece(root.transform, "Rail", PrimitiveType.Cylinder, new Vector3(side, 0f, 0f),
                             new Vector3(.09f, length * .5f, .09f), 4);
@@ -442,6 +472,7 @@ namespace GoldCamp.Demo
                         new Vector3(.045f, .21f, .045f), 7, Quaternion.Euler(0f, 0f, -40f));
                     Piece(root.transform, "Arrow right", PrimitiveType.Cube, new Vector3(.07f, .65f, -.12f),
                         new Vector3(.045f, .21f, .045f), 7, Quaternion.Euler(0f, 0f, 40f));
+                    }
                     BoxCollider trigger = root.AddComponent<BoxCollider>();
                     trigger.isTrigger = true;
                     trigger.size = new Vector3(.95f, length, .35f);
@@ -470,7 +501,8 @@ namespace GoldCamp.Demo
             var vehicleMotion = Session.GetComponent<CampVehicleMotion>();
             root.position = seated ? vehicleMotion.SeatPosition(miner.VehicleSeat, view.Vehicle) :
                 Vector3.Lerp(root.position, miner.Position, created ? 1f : FollowBlend());
-            root.rotation = Quaternion.Slerp(root.rotation, Quaternion.Euler(0,seated?vehicleMotion.VisualYaw(view.Vehicle):miner.Yaw,0), created ? 1f : FollowBlend());
+            bool climbing = !seated && !string.IsNullOrEmpty(miner.ClimbingLadderId);
+            root.rotation = Quaternion.Slerp(root.rotation, Quaternion.Euler(0,seated?vehicleMotion.VisualYaw(view.Vehicle):climbing?0:miner.Yaw,0), created ? 1f : FollowBlend());
             visual.Model.Pose(miner, view, hasHand, handKind, assisting);
         }
         private GameObject NewRoot(string name, string kind, string id)

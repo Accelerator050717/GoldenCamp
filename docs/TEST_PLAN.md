@@ -8,6 +8,7 @@
 
 | 入口 | 覆盖与证据边界 |
 |---|---|
+| `Export-ArtSample.ps1` → `DemoGenerate` → `ArtPreview -WithGraphics` | Blender 可编辑源、FBX 实际导入、Unity 原样截图。预览是隔离姿态场景，不能代替实机、网络或真人。美术专用 EditMode 检查真实几何/材质/本地轴和动作握点，外观由用户另行认可。 |
 | `Test-DemoNetwork.ps1` | 实际双进程抢矿、出售/分账幂等、身份和私有投影、保存重开。 |
 | `Test-DemoNetwork.ps1 -FullMineSnapshot -SnapshotReaderContention` | 明确的容量fixture：224格挖空、224梯、原始产物全保留；验证大投影通过真实网络和重开，另用真实读锁验证诊断阻塞不影响玩法，释放后恢复；不能冒充正常成长。 |
 | `Test-DemoMining.ps1` | 正常输入路线、实际向下挖矿与梯子搬运、协作加入退出、出售转账和坑梯重开。 |

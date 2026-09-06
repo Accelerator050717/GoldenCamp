@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8375cacefa7143f45bfa1d0a4e8da586, type: 3}
+  m_Name: GoldCampArtSample
+  m_EditorClassIdentifier: GoldCamp.Demo::GoldCamp.Demo.CampArtSet
+  Models:
+  - Key: BeanMiner
+    Prefab: {fileID: 1343975665959265687, guid: 11b32f10906ab0446a4d2af705e35855, type: 3}
+  - Key: CabinCorner
+    Prefab: {fileID: 3881412673751994980, guid: f57f830cd7256684fbd3b249b15bd296, type: 3}
+  - Key: Detector
+    Prefab: {fileID: 2131958442762001338, guid: 82ee1969bd85800429b6c065d4a74eb4, type: 3}
+  - Key: GloveLeft
+    Prefab: {fileID: 4991798743734305052, guid: a904e97ce517f474c986e7c4b7c9104a, type: 3}
+  - Key: GloveRight
+    Prefab: {fileID: 8158209480324992669, guid: 41b62e7dcefebda4db741a9a43df237a, type: 3}
+  - Key: GoldOre
+    Prefab: {fileID: 2012810365092128956, guid: 77cd8f53b5163f44ea0ba8d4a2f58d61, type: 3}
+  - Key: HeavyOre
+    Prefab: {fileID: 194280166756128772, guid: 8863cd0ae53f06f40b54a6f28e8fce05, type: 3}
+  - Key: IronOre
+    Prefab: {fileID: 9195457912170853441, guid: fb2862b97878829468be32a15d0c673a, type: 3}
+  - Key: Ladder
+    Prefab: {fileID: 5786712006639364443, guid: 837fda837807ee14ab7ec34b8ffc726b, type: 3}
+  - Key: MarketStall
+    Prefab: {fileID: 1863247849251226600, guid: 92e12d82cd2e5cb47b795758d8dd0d1f, type: 3}
+  - Key: Pickaxe
+    Prefab: {fileID: 5454689668126891548, guid: f8ef823fa311f274fbe97dd4d5ff7434, type: 3}
+  - Key: PineSample
+    Prefab: {fileID: 2039446035000232169, guid: c296e21e685cf83489cc0dcae745c3e8, type: 3}
+  - Key: RawClosed
+    Prefab: {fileID: 231345982227517768, guid: 2c8ab68ea329ba846a5723e1735f0e59, type: 3}
+  - Key: RawOpenGold
+    Prefab: {fileID: 2272071958126711565, guid: f7a4e0bd449ee28498e848e78e39462f, type: 3}
+  - Key: RawOpenIron
+    Prefab: {fileID: 7829176539281877942, guid: 69679ba2583e2804cb1c603d38cf53cf, type: 3}
+  - Key: RawOpenStone
+    Prefab: {fileID: 665503717927951217, guid: 53ebcf5f45f84c6459b042670fde51ab, type: 3}
+  - Key: RawWindow
+    Prefab: {fileID: 3898545694434770239, guid: 81bc5fc97be22a440910fbae087ab7db, type: 3}
+  - Key: RockSample
+    Prefab: {fileID: 3018578911152648911, guid: a1f6e6003c334034abd890dab419020f, type: 3}
+  - Key: StoneOre
+    Prefab: {fileID: 4913525328742198018, guid: de8020e16c3164544ac71c0aa147793c, type: 3}
+  - Key: WoodCrate
+    Prefab: {fileID: 1875358360582523283, guid: ccb550b1741b46c4f8d161d144083619, type: 3}
+  MinerVariants:
+  - {fileID: 2100000, guid: 8a459e86854cf4e49919f5d0cbb7e789, type: 2}
+  - {fileID: 2100000, guid: 3db8291257543504ab629a90c5961634, type: 2}
+  - {fileID: 2100000, guid: 593dac7c09fd84f488f6eeb8e891b102, type: 2}
+  - {fileID: 2100000, guid: 7ca0aa14a4f8e424fb5ff95f091d263c, type: 2}

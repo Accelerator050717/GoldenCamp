@@ -1,0 +1,167 @@
+{
+  "blender": "5.2.1 LTS",
+  "coordinate_contract": "Unity metres, +Y up, +Z forward; Blender source converts Y/Z axes",
+  "reference": "User supplied 01 character turnaround; 02/04 camp props; 05 auxiliary accessories",
+  "assets": [
+    {
+      "asset": "BeanMiner",
+      "renderers": 19,
+      "triangles": 29094,
+      "vertices": 15226,
+      "file": "BeanMiner.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "Pickaxe",
+      "renderers": 1,
+      "triangles": 1044,
+      "vertices": 584,
+      "file": "Pickaxe.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "Detector",
+      "renderers": 1,
+      "triangles": 2664,
+      "vertices": 1384,
+      "file": "Detector.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "GloveRight",
+      "renderers": 1,
+      "triangles": 2920,
+      "vertices": 1512,
+      "file": "GloveRight.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "GloveLeft",
+      "renderers": 1,
+      "triangles": 2920,
+      "vertices": 1512,
+      "file": "GloveLeft.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "GoldOre",
+      "renderers": 1,
+      "triangles": 156,
+      "vertices": 240,
+      "file": "GoldOre.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "StoneOre",
+      "renderers": 1,
+      "triangles": 54,
+      "vertices": 87,
+      "file": "StoneOre.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "IronOre",
+      "renderers": 1,
+      "triangles": 96,
+      "vertices": 159,
+      "file": "IronOre.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "RawClosed",
+      "renderers": 1,
+      "triangles": 74,
+      "vertices": 165,
+      "file": "RawClosed.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "RawWindow",
+      "renderers": 1,
+      "triangles": 142,
+      "vertices": 301,
+      "file": "RawWindow.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "RawOpenGold",
+      "renderers": 1,
+      "triangles": 142,
+      "vertices": 301,
+      "file": "RawOpenGold.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "RawOpenIron",
+      "renderers": 1,
+      "triangles": 142,
+      "vertices": 301,
+      "file": "RawOpenIron.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "RawOpenStone",
+      "renderers": 1,
+      "triangles": 142,
+      "vertices": 301,
+      "file": "RawOpenStone.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "HeavyOre",
+      "renderers": 1,
+      "triangles": 1678,
+      "vertices": 903,
+      "file": "HeavyOre.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "WoodCrate",
+      "renderers": 1,
+      "triangles": 4976,
+      "vertices": 2592,
+      "file": "WoodCrate.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "Ladder",
+      "renderers": 1,
+      "triangles": 3424,
+      "vertices": 1744,
+      "file": "Ladder.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "CabinCorner",
+      "renderers": 3,
+      "triangles": 14444,
+      "vertices": 7804,
+      "file": "CabinCorner.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "MarketStall",
+      "renderers": 6,
+      "triangles": 10320,
+      "vertices": 5402,
+      "file": "MarketStall.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "PineSample",
+      "renderers": 1,
+      "triangles": 5148,
+      "vertices": 2728,
+      "file": "PineSample.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    },
+    {
+      "asset": "RockSample",
+      "renderers": 1,
+      "triangles": 208,
+      "vertices": 112,
+      "file": "RockSample.fbx",
+      "editable_source": "GoldCampSample01.blend"
+    }
+  ]
+}

@@ -87,6 +87,29 @@ namespace GoldCamp.Demo.Editor
             Solid(root,"Side wall R",new Vector3(2.1f,1.45f,2),new Vector3(.22f,2.9f,4),_wood);
             Solid(root,"Front wall L",new Vector3(-1.45f,1.45f,0),new Vector3(1.25f,2.9f,.22f),_wood);
             Solid(root,"Front wall R",new Vector3(1.45f,1.45f,0),new Vector3(1.25f,2.9f,.22f),_wood);
+            var sample = index == 0 ? CampArtSet.Spawn("CabinCorner", root) : null;
+            if (sample != null)
+            {
+                foreach (var collider in root.GetComponentsInChildren<BoxCollider>())
+                    collider.GetComponent<Renderer>().enabled = false;
+                Text(root,"私人柜 · 1",new Vector3(0,2.65f,-.24f),.08f);
+                Crate(root,new Vector3(2.8f,.4f,-1),.8f);
+                var tree = CampArtSet.Spawn("PineSample", root);
+                if (tree != null) tree.localPosition = new Vector3(-3.5f,0,-1.1f);
+                for (int i=0;i<5;i++) {
+                    var rock = CampArtSet.Spawn("RockSample", root);
+                    if (rock != null) { rock.localPosition = new Vector3(-2.8f-i*.37f,0,-1.7f+i*.6f); rock.localScale=Vector3.one*(.4f+i*.11f); }
+                }
+                Path(root,new Vector3(0,0,-3.6f),new Vector3(0,0,-.3f),1.6f);
+                for(int side=-1;side<=1;side+=2)for(int i=0;i<5;i++) {
+                    var gravel=CampArtSet.Spawn("RockSample",root);
+                    if(gravel!=null) {gravel.localPosition=new Vector3(side*(1.02f+i%2*.09f),-.018f,-3.4f+i*.61f);gravel.localScale=Vector3.one*(.17f+i%3*.055f);}
+                }
+                var light = new GameObject("Porch warm light").AddComponent<Light>();
+                light.transform.SetParent(root,false); light.transform.localPosition=new Vector3(-1.08f,2.22f,-.5f);
+                light.type=LightType.Point;light.color=new Color(1,.65f,.3f);light.range=4;light.intensity=1.1f;light.shadows=LightShadows.None;
+                return;
+            }
             Part(root,"Porch boards",PrimitiveType.Cube,new Vector3(0,.025f,.9f),new Vector3(4.4f,.05f,6.2f),_trim);
             for(int i=0;i<7;i++)
             {
@@ -107,6 +130,12 @@ namespace GoldCamp.Demo.Editor
         private static void Stall(Transform parent,Vector3 position,string title,bool market)
         {
             var root=new GameObject(title+" details").transform; root.SetParent(parent,false);root.position=position;
+            if (market && CampArtSet.Spawn("MarketStall", root) != null)
+            {
+                Crate(root,new Vector3(-2.1f,.45f,0),.9f);
+                Text(root,title,new Vector3(0,1.75f,-.75f),.095f);
+                return;
+            }
             Part(root,"Counter top",PrimitiveType.Cube,new Vector3(0,1.15f,0),new Vector3(2.8f,.18f,1.4f),_trim);
             for(int i=0;i<7;i++) Part(root,"Counter slat",PrimitiveType.Cube,new Vector3(-1.2f+i*.4f,.6f,-.57f),new Vector3(.33f,1f,.12f),_wood);
             if(market)
@@ -161,13 +190,17 @@ namespace GoldCamp.Demo.Editor
         }
         private static void Rock(Transform parent,Vector3 p,Vector3 scale) => MeshPart(parent,"Rock outcrop",_stone,p+Vector3.up*scale.y*.4f,scale,_rock);
         private static void Path(Transform parent,Vector3 a,Vector3 b,float width)
-        {var p=Part(parent,"Dirt path",PrimitiveType.Cube,(a+b)*.5f+Vector3.up*.018f,new Vector3(width,.025f,Vector3.Distance(a,b)),_dirt);p.transform.rotation=Quaternion.LookRotation(b-a);}
+        {var p=Part(parent,"Dirt path",PrimitiveType.Cube,(a+b)*.5f+Vector3.up*.018f,new Vector3(width,.025f,Vector3.Distance(a,b)),_dirt);p.transform.localRotation=Quaternion.LookRotation(b-a);}
         private static void Fence(Transform parent,Vector3 p,float length)
         {foreach(float x in new[]{-length/2,length/2}) Solid(parent,"Fence post",p+new Vector3(x,.6f,0),new Vector3(.2f,1.2f,.2f),_wood);foreach(float y in new[]{.4f,.85f})Part(parent,"Fence rail",PrimitiveType.Cube,p+new Vector3(0,y,0),new Vector3(length,.13f,.13f),_trim);}
         private static void Barrel(Transform parent,Vector3 p)
         {Part(parent,"Barrel",PrimitiveType.Cylinder,p,new Vector3(.65f,.55f,.65f),_wood);foreach(float y in new[]{-.32f,.32f})Part(parent,"Barrel hoop",PrimitiveType.Cylinder,p+Vector3.up*y,new Vector3(.69f,.045f,.69f),_metal);}
         private static void Crate(Transform parent,Vector3 p,float size)
-        {Part(parent,"Crate",PrimitiveType.Cube,p,Vector3.one*size,_wood);foreach(float x in new[]{-.4f,.4f})Part(parent,"Crate strap",PrimitiveType.Cube,p+new Vector3(x*size,0,-.505f*size),new Vector3(.075f,size,.03f),_trim);}
+        {
+            var sample = CampArtSet.Spawn("WoodCrate", parent);
+            if (sample != null) { sample.localPosition=p; sample.localScale=Vector3.one*size; return; }
+            Part(parent,"Crate",PrimitiveType.Cube,p,Vector3.one*size,_wood);foreach(float x in new[]{-.4f,.4f})Part(parent,"Crate strap",PrimitiveType.Cube,p+new Vector3(x*size,0,-.505f*size),new Vector3(.075f,size,.03f),_trim);
+        }
         private static void Lantern(Transform parent,Vector3 p)
         {Part(parent,"Lantern iron",PrimitiveType.Cube,p,new Vector3(.23f,.38f,.23f),_metal);Part(parent,"Lantern glow",PrimitiveType.Cube,p+Vector3.back*.035f,new Vector3(.16f,.25f,.25f),_lamp);}
         private static void Sign(Transform parent,Vector3 p,string title,Quaternion rotation)

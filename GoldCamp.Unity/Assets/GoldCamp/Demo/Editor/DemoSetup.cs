@@ -21,6 +21,7 @@ namespace GoldCamp.Demo.Editor
             Directory.CreateDirectory(Path.GetDirectoryName(ScenePath));
             Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath));
             AssetDatabase.Refresh();
+            CampSampleImporter.Prepare();
             var config = AssetDatabase.LoadAssetAtPath<DemoConfig>(ConfigPath);
             if (config == null)
             {
@@ -99,6 +100,10 @@ namespace GoldCamp.Demo.Editor
             var go = Box(name, position + Vector3.up * .55f, new Vector3(1.6f,1.1f,1), material);
             if (kind == "cabinet") go.transform.localScale = new Vector3(.8f,1.1f,.6f);
             var target = go.AddComponent<CampTarget>(); target.Kind = kind; target.Id = id;
+            if (kind == "station" && id == "sale" && CampArtSet.Current?.Find("MarketStall") != null)
+                go.GetComponent<Renderer>().enabled = false;
+            if (kind == "cabinet" && id == "0" && CampArtSet.Spawn("WoodCrate", go.transform) != null)
+                go.GetComponent<Renderer>().enabled = false;
         }
 
         [MenuItem("GoldCamp/Demo/Build Windows")]

@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>淘金营地 · 美术样件 01</title>
+  <style>
+    :root { --bg:#171a19; --panel:#202422; --line:#393d36; --text:#eeeee5; --muted:#b5b9ad; --gold:#d8b373; --wood:#9b7450; }
+    * { box-sizing:border-box; }
+    [hidden] { display:none!important; }
+    html { scroll-behavior:smooth; scroll-padding-top:1.5rem; }
+    body { margin:0; background:var(--bg); color:var(--text); font:15px/1.7 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+    a { color:inherit; }
+    button { font:inherit; }
+    button,a { -webkit-tap-highlight-color:transparent; }
+    :focus-visible { outline:3px solid var(--gold); outline-offset:5px; }
+    .wrap { width:min(1280px, calc(100% - 64px)); margin-inline:auto; }
+    header { padding:56px 0 34px; border-bottom:1px solid var(--line); background:radial-gradient(ellipse at 90% 0%,#393026 0%,transparent 60%); }
+    .eyebrow { margin:0 0 18px; color:var(--gold); font-size:11px; font-weight:650; letter-spacing:.2em; }
+    .heading { display:flex; justify-content:space-between; align-items:flex-end; gap:32px; }
+    h1 { margin:0; font-size:clamp(29px,4vw,46px); font-weight:650; line-height:1.25; letter-spacing:.015em; }
+    h1 span { color:var(--gold); font-weight:400; }
+    .intro { margin:15px 0 0; color:var(--muted); max-width:650px; }
+    .status { flex-shrink:0; display:flex; align-items:center; gap:9px; margin:0 0 5px; padding:8px 13px; border:1px solid #655238; border-radius:4px; color:#e4c591; font-size:13px; background:#302a21; }
+    .status::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--gold); }
+    nav { display:flex; flex-wrap:wrap; gap:9px; margin-top:28px; }
+    nav a { padding:7px 15px; text-decoration:none; border:1px solid var(--line); border-radius:4px; font-size:13px; background:#20231f; transition:border-color .15s,background .15s; }
+    nav a:hover { border-color:var(--wood); background:#2c2c24; }
+    main { padding-bottom:52px; }
+    section { margin-top:42px; }
+    .section-heading { display:flex; align-items:baseline; justify-content:space-between; gap:20px; margin-bottom:18px; }
+    h2 { margin:0; font-size:24px; font-weight:600; }
+    .section-index { margin-right:13px; color:var(--gold); font-size:13px; font-variant-numeric:tabular-nums; }
+    .source { color:var(--muted); font-size:12px; white-space:nowrap; }
+    .boundary { margin:0 0 25px; padding:12px 16px; border-left:2px solid var(--wood); background:#24251f; color:#c6c5b7; font-size:13px; }
+    h3 { margin:28px 0 12px; font-size:14px; font-weight:550; color:#cacabe; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+    .grid.wide { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    figure { margin:0; overflow:hidden; background:var(--panel); border:1px solid var(--line); border-radius:6px; }
+    .image-link { position:relative; display:block; overflow:hidden; aspect-ratio:4/3; background:#222722; text-decoration:none; }
+    .image-link img { display:block; width:100%; height:100%; object-fit:contain; transition:transform .2s; }
+    .image-link:hover img { transform:scale(1.025); }
+    .image-link::after { content:"↗"; position:absolute; right:10px; bottom:10px; display:grid; place-items:center; width:27px; height:27px; color:#f3e2bd; border:1px solid #ffffff22; border-radius:4px; background:#171a19bb; opacity:0; transition:opacity .15s; }
+    .image-link:hover::after,.image-link:focus-visible::after { opacity:1; }
+    .image-link.missing::before { content:"图片待归档"; position:absolute; inset:0; display:grid; place-items:center; color:#9d9f93; font-size:13px; }
+    .image-link.missing img { visibility:hidden; }
+    figcaption { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:11px 14px; font-size:14px; border-top:1px solid var(--line); }
+    .note { color:var(--muted); font-size:11px; }
+    #windows { padding-top:34px; border-top:1px solid var(--line); }
+    #windows .image-link { aspect-ratio:16/10; background:#171a19; }
+    footer { padding:23px 0 30px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+    footer .wrap { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; }
+    footer p { margin:0; }
+    dialog { width:min(1400px, calc(100vw - 40px)); max-width:none; max-height:calc(100dvh - 36px); padding:0; overflow:auto; border:1px solid #555748; border-radius:8px; background:#171a19; color:var(--text); box-shadow:0 24px 90px #0009; }
+    dialog::backdrop { background:#090d0ded; }
+    .lightbox-bar { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:13px 18px; border-bottom:1px solid var(--line); }
+    #lightbox-title { margin:0; font-size:16px; font-weight:550; }
+    #lightbox-source { margin:2px 0 0; color:var(--muted); font-size:12px; }
+    .icon-button { min-width:42px; min-height:40px; padding:5px 12px; border:1px solid var(--line); border-radius:4px; background:#272b27; color:var(--text); cursor:pointer; }
+    .icon-button:hover { background:#393a30; border-color:var(--wood); }
+    .lightbox-stage { display:grid; place-items:center; min-height:180px; background:#1d211e; }
+    #lightbox-image { display:block; max-width:100%; max-height:calc(100dvh - 205px); width:auto; height:auto; object-fit:contain; }
+    #lightbox-error { padding:50px 15px; color:var(--muted); }
+    .lightbox-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 18px; border-top:1px solid var(--line); }
+    #lightbox-counter { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
+    .lightbox-actions { display:flex; gap:8px; }
+    .original { color:var(--gold); font-size:12px; text-underline-offset:3px; }
+    @media(max-width:900px) {
+      .grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .heading { display:block; }
+      .status { display:inline-flex; margin:20px 0 0; }
+      .grid.wide { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+    @media(max-width:600px) {
+      .wrap { width:calc(100% - 32px); }
+      header { padding:34px 0 25px; }
+      .eyebrow { font-size:10px; }
+      .grid,.grid.wide { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+      #windows .grid { grid-template-columns:1fr; }
+      .section-heading { display:block; margin-bottom:13px; }
+      .source { display:block; margin:6px 0 0 31px; }
+      h2 { font-size:21px; }
+      figcaption { padding:9px 10px; font-size:13px; }
+      .note { font-size:10px; }
+      dialog { width:calc(100vw - 16px); max-height:calc(100dvh - 16px); }
+      .lightbox-bar,.lightbox-footer { padding:10px 12px; }
+      #lightbox-source { max-width:220px; }
+    }
+    @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } *,*::before,*::after { transition:none!important; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <p class="eyebrow">GOLDCAMP / ART SAMPLE 01</p>
+      <div class="heading">
+        <div>
+          <h1>淘金营地 <span>· 美术样件 01</span></h1>
+          <p class="intro">看看矿工的轮廓与表情、手里的工具，以及木屋和收购台的材质与细节。</p>
+        </div>
+        <p class="status">制作样件 · 待外观认可</p>
+      </div>
+      <nav aria-label="图库分区">
+        <a href="#miner">矿工与动作</a>
+        <a href="#props">道具与营地</a>
+        <a href="#windows">Windows 第一人称实机</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="miner" aria-labelledby="miner-title">
+      <div class="section-heading">
+        <h2 id="miner-title"><span class="section-index">01</span>矿工与动作</h2>
+        <span class="source">实际 Unity 模型预览</span>
+      </div>
+      <p class="boundary">以下为 Unity 中的实际模型与静态姿态展示，用于检查外观；静态姿态不是真人联机测试，也不能证明连续动作的表现。点击图片可放大。</p>
+      <h3>轮廓与比例</h3>
+      <div class="grid" data-source="实际 Unity 模型预览 · 静态视角">
+        <figure><a class="image-link" href="images/front.png"><img src="images/front.png" alt="矿工正面" decoding="async"></a><figcaption>正面<span class="note">轮廓</span></figcaption></figure>
+        <figure><a class="image-link" href="images/side.png"><img src="images/side.png" alt="矿工侧面" decoding="async"></a><figcaption>侧面<span class="note">比例</span></figcaption></figure>
+        <figure><a class="image-link" href="images/back.png"><img src="images/back.png" alt="矿工背面" decoding="async"></a><figcaption>背面<span class="note">服装</span></figcaption></figure>
+        <figure><a class="image-link" href="images/three-quarter.png"><img src="images/three-quarter.png" alt="矿工四分之三视角" decoding="async"></a><figcaption>四分之三视角<span class="note">整体</span></figcaption></figure>
+      </div>
+      <h3>动作与表情</h3>
+      <div class="grid" data-source="实际 Unity 模型预览 · 静态姿态">
+        <figure><a class="image-link" href="images/walk.png"><img src="images/walk.png" alt="矿工走路姿态" loading="lazy" decoding="async"></a><figcaption>走路</figcaption></figure>
+        <figure><a class="image-link" href="images/cheeks.png"><img src="images/cheeks.png" alt="嘴藏金粒时的鼓腮表情" loading="lazy" decoding="async"></a><figcaption>嘴藏 · 鼓腮</figcaption></figure>
+        <figure><a class="image-link" href="images/smoke.png"><img src="images/smoke.png" alt="矿工抽烟姿态" loading="lazy" decoding="async"></a><figcaption>抽烟</figcaption></figure>
+        <figure><a class="image-link" href="images/drink.png"><img src="images/drink.png" alt="矿工喝酒姿态" loading="lazy" decoding="async"></a><figcaption>喝酒</figcaption></figure>
+        <figure><a class="image-link" href="images/detect.png"><img src="images/detect.png" alt="矿工使用探测器的姿态" loading="lazy" decoding="async"></a><figcaption>探测</figcaption></figure>
+        <figure><a class="image-link" href="images/swing.png"><img src="images/swing.png" alt="矿工挥镐姿态" loading="lazy" decoding="async"></a><figcaption>挥镐</figcaption></figure>
+        <figure><a class="image-link" href="images/carry.png"><img src="images/carry.png" alt="矿工搬运矿物的姿态" loading="lazy" decoding="async"></a><figcaption>搬运</figcaption></figure>
+        <figure><a class="image-link" href="images/ladder.png"><img src="images/ladder.png" alt="矿工攀爬梯子的姿态" loading="lazy" decoding="async"></a><figcaption>攀梯</figcaption></figure>
+        <figure><a class="image-link" href="images/stunned.png"><img src="images/stunned.png" alt="矿工被击晕的姿态" loading="lazy" decoding="async"></a><figcaption>击晕</figcaption></figure>
+        <figure><a class="image-link" href="images/driver.png"><img src="images/driver.png" alt="矿工驾驶座坐姿" loading="lazy" decoding="async"></a><figcaption>驾驶座</figcaption></figure>
+        <figure><a class="image-link" href="images/passenger.png"><img src="images/passenger.png" alt="矿工乘客座坐姿" loading="lazy" decoding="async"></a><figcaption>乘客座</figcaption></figure>
+      </div>
+      <h3>配色变体</h3>
+      <div class="grid wide" data-source="实际 Unity 模型预览 · 配色变体">
+        <figure><a class="image-link" href="images/variant-red.png"><img src="images/variant-red.png" alt="矿工红色配色变体" loading="lazy" decoding="async"></a><figcaption>红色</figcaption></figure>
+        <figure><a class="image-link" href="images/variant-blue.png"><img src="images/variant-blue.png" alt="矿工蓝色配色变体" loading="lazy" decoding="async"></a><figcaption>蓝色</figcaption></figure>
+        <figure><a class="image-link" href="images/variant-green.png"><img src="images/variant-green.png" alt="矿工绿色配色变体" loading="lazy" decoding="async"></a><figcaption>绿色</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="props" aria-labelledby="props-title">
+      <div class="section-heading">
+        <h2 id="props-title"><span class="section-index">02</span>道具与营地</h2>
+        <span class="source">实际 Unity 模型预览</span>
+      </div>
+      <p class="boundary">本轮聚焦一处木屋与收购台角落，以及配套道具。这里展示制作样件，外观仍待你认可。</p>
+      <h3>工具与矿物</h3>
+      <div class="grid" data-source="实际 Unity 模型预览 · 道具">
+        <figure><a class="image-link" href="images/prop-Pickaxe.png"><img src="images/prop-Pickaxe.png" alt="矿镐模型" loading="lazy" decoding="async"></a><figcaption>矿镐</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-Detector.png"><img src="images/prop-Detector.png" alt="探测器模型" loading="lazy" decoding="async"></a><figcaption>探测器</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-GloveRight.png"><img src="images/prop-GloveRight.png" alt="右手手套模型" loading="lazy" decoding="async"></a><figcaption>右手手套</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-GoldOre.png"><img src="images/prop-GoldOre.png" alt="金矿模型" loading="lazy" decoding="async"></a><figcaption>金矿</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-RawClosed.png"><img src="images/prop-RawClosed.png" alt="未开窗原石模型" loading="lazy" decoding="async"></a><figcaption>原石 · 未开窗</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-RawWindow.png"><img src="images/prop-RawWindow.png" alt="已开窗原石模型" loading="lazy" decoding="async"></a><figcaption>原石 · 开窗</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-RawOpenGold.png"><img src="images/prop-RawOpenGold.png" alt="完整开石后金芯模型" loading="lazy" decoding="async"></a><figcaption>完整开石 · 金芯</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-RawOpenIron.png"><img src="images/prop-RawOpenIron.png" alt="完整开石后铁芯模型" loading="lazy" decoding="async"></a><figcaption>完整开石 · 铁芯</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-WoodCrate.png"><img src="images/prop-WoodCrate.png" alt="木箱模型" loading="lazy" decoding="async"></a><figcaption>木箱</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-Ladder.png"><img src="images/prop-Ladder.png" alt="木梯模型" loading="lazy" decoding="async"></a><figcaption>木梯</figcaption></figure>
+      </div>
+      <h3>营地角落</h3>
+      <div class="grid" data-source="实际 Unity 模型预览 · 营地样件">
+        <figure><a class="image-link" href="images/prop-CabinCorner.png"><img src="images/prop-CabinCorner.png" alt="木屋角落模型" loading="lazy" decoding="async"></a><figcaption>木屋</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-MarketStall.png"><img src="images/prop-MarketStall.png" alt="收购台模型" loading="lazy" decoding="async"></a><figcaption>收购台</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-PineSample.png"><img src="images/prop-PineSample.png" alt="松树样件模型" loading="lazy" decoding="async"></a><figcaption>松树</figcaption></figure>
+        <figure><a class="image-link" href="images/prop-RockSample.png"><img src="images/prop-RockSample.png" alt="石簇样件模型" loading="lazy" decoding="async"></a><figcaption>石簇</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="windows" aria-labelledby="windows-title">
+      <div class="section-heading">
+        <h2 id="windows-title"><span class="section-index">03</span>Windows 第一人称实机</h2>
+        <span class="source">Windows 游戏运行画面</span>
+      </div>
+      <p class="boundary">以下截图来自 Windows 游戏中的第一人称视角，用于查看模型进入营地后的实际画面。截图本身不代表真人联机或完整玩法验收。</p>
+      <div class="grid wide" data-source="Windows 第一人称实机 · 游戏运行截图">
+        <figure><a class="image-link" href="images/first-person-cabin.png"><img src="images/first-person-cabin.png" alt="Windows 游戏中第一人称查看木屋" loading="lazy" decoding="async"></a><figcaption>木屋前</figcaption></figure>
+        <figure><a class="image-link" href="images/first-person-market.png"><img src="images/first-person-market.png" alt="Windows 游戏中第一人称查看收购台" loading="lazy" decoding="async"></a><figcaption>收购台前</figcaption></figure>
+        <figure><a class="image-link" href="images/first-person-detector.png"><img src="images/first-person-detector.png" alt="Windows 游戏中第一人称手持探测器" loading="lazy" decoding="async"></a><figcaption>手持探测器</figcaption></figure>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="wrap"><p>GoldCamp / 淘金营地 · 样件外观评审</p><p>点击放大 · 左右方向键切换 · Esc 关闭</p></div></footer>
+
+  <dialog id="lightbox" aria-labelledby="lightbox-title" aria-describedby="lightbox-source">
+    <div class="lightbox-bar">
+      <div><h2 id="lightbox-title"></h2><p id="lightbox-source"></p></div>
+      <button class="icon-button" id="close-lightbox" type="button" aria-label="关闭图片" autofocus>关闭 ×</button>
+    </div>
+    <div class="lightbox-stage"><img id="lightbox-image" alt=""><p id="lightbox-error" hidden>图片尚未归档。</p></div>
+    <div class="lightbox-footer">
+      <span id="lightbox-counter" aria-live="polite"></span>
+      <a class="original" id="original-image" target="_blank" rel="noopener">打开原图</a>
+      <div class="lightbox-actions"><button class="icon-button" id="previous-image" type="button" aria-label="上一张图片">←</button><button class="icon-button" id="next-image" type="button" aria-label="下一张图片">→</button></div>
+    </div>
+  </dialog>
+
+  <script>
+    (() => {
+      'use strict';
+      const links = [...document.querySelectorAll('.image-link')];
+      const dialog = document.getElementById('lightbox');
+      const image = document.getElementById('lightbox-image');
+      const error = document.getElementById('lightbox-error');
+      const counter = document.getElementById('lightbox-counter');
+      let current = 0;
+      let opener = null;
+      links.forEach(link => {
+        const thumbnail = link.querySelector('img');
+        const showState = () => link.classList.toggle('missing', thumbnail.complete && thumbnail.naturalWidth === 0);
+        thumbnail.addEventListener('error', showState);
+        thumbnail.addEventListener('load', showState);
+        if (thumbnail.complete) showState();
+        link.setAttribute('aria-label', '放大：' + thumbnail.alt);
+      });
+      // The image links also work directly when JavaScript or dialog support is unavailable.
+      if (typeof dialog.showModal !== 'function') return;
+      function show(index) {
+        current = (index + links.length) % links.length;
+        const link = links[current];
+        const thumbnail = link.querySelector('img');
+        document.getElementById('lightbox-title').textContent = thumbnail.alt;
+        document.getElementById('lightbox-source').textContent = link.closest('[data-source]').dataset.source;
+        image.hidden = false;
+        error.hidden = true;
+        image.alt = thumbnail.alt;
+        image.src = link.getAttribute('href');
+        document.getElementById('original-image').href = link.getAttribute('href');
+        counter.textContent = (current + 1) + ' / ' + links.length;
+      }
+      image.addEventListener('error', () => { image.hidden = true; error.hidden = false; });
+      image.addEventListener('load', () => { image.hidden = false; error.hidden = true; });
+      links.forEach((link, index) => link.addEventListener('click', event => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
+        event.preventDefault();
+        opener = link;
+        show(index);
+        dialog.showModal();
+        document.body.style.overflow = 'hidden';
+      }));
+      document.getElementById('close-lightbox').addEventListener('click', () => dialog.close());
+      document.getElementById('previous-image').addEventListener('click', () => show(current - 1));
+      document.getElementById('next-image').addEventListener('click', () => show(current + 1));
+      dialog.addEventListener('keydown', event => {
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+          event.preventDefault();
+          show(current + (event.key === 'ArrowRight' ? 1 : -1));
+        }
+      });
+      dialog.addEventListener('click', event => {
+        if (event.target !== dialog) return;
+        const rect = dialog.getBoundingClientRect();
+        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
+      });
+      dialog.addEventListener('close', () => {
+        document.body.style.overflow = '';
+        if (opener) opener.focus({ preventScroll:true });
+      });
+    })();
+  </script>
+</body>
+</html>

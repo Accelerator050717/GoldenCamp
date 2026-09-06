@@ -9,6 +9,7 @@ namespace GoldCamp.Demo
     public sealed class CampMinerModel : MonoBehaviour
     {
         public Transform CarryAnchor { get; private set; }
+        public static Vector3 CarryLocalPosition(ItemKind kind, bool climbing = false) => new Vector3(0f, 1f, (kind == ItemKind.HeavyOre ? .93f : .66f) - (climbing ? .22f : 0));
 
         private sealed class Arm
         {
@@ -31,6 +32,9 @@ namespace GoldCamp.Demo
         private readonly Transform[] _puffs = new Transform[6];
         private readonly Renderer[] _puffRenderers = new Renderer[6];
         private Arm _leftArm, _rightArm;
+        private Transform _imported;
+        private Renderer[] _importedRenderers;
+        private Transform[] _variantProps;
         private TextMesh _name;
         private Font _nameFont;
         private string _minerId = "", _displayName = "";
@@ -88,19 +92,40 @@ namespace GoldCamp.Demo
             _cylinder = Lathe("Unit cylinder", new[] { -.5f, -.5f, .5f, .5f },
                 new[] { 0f, .5f, .5f, 0f }, new[] { 0f, .5f, .5f, 0f });
             _box = BoxMesh();
-            _body = Joint(transform, "Animated body", Vector3.zero);
-            BuildBody();
-            BuildFace();
-            BuildHelmet();
-            _leftArm = BuildArm(-1f);
-            _rightArm = BuildArm(1f);
-            _leftLeg = BuildLeg(-1f, out _leftKnee);
-            _rightLeg = BuildLeg(1f, out _rightKnee);
+            _imported = CampArtSet.Spawn("BeanMiner", transform);
+            if (_imported != null) BindImported();
+            else
+            {
+                _body = Joint(transform, "Animated body", Vector3.zero);
+                BuildBody(); BuildFace(); BuildHelmet();
+                _leftArm = BuildArm(-1f); _rightArm = BuildArm(1f);
+                _leftLeg = BuildLeg(-1f, out _leftKnee); _rightLeg = BuildLeg(1f, out _rightKnee);
+            }
             BuildTools();
             BuildSocialProps();
             BuildName();
             CarryAnchor = Joint(_body, "Carry visual anchor", new Vector3(0f, 1f, .66f));
             _ready = true;
+        }
+
+        private void BindImported()
+        {
+            _body = CampArtSet.Node(_imported, "Body");
+            _leftArm = ImportedArm("Left", -1); _rightArm = ImportedArm("Right", 1);
+            _leftLeg = CampArtSet.Node(_imported, "LeftHip"); _rightLeg = CampArtSet.Node(_imported, "RightHip");
+            _leftKnee = CampArtSet.Node(_imported, "LeftKnee"); _rightKnee = CampArtSet.Node(_imported, "RightKnee");
+            _leftCheek = CampArtSet.Node(_imported, "LeftCheek"); _rightCheek = CampArtSet.Node(_imported, "RightCheek");
+            _leftLid = CampArtSet.Node(_imported, "LeftLid"); _rightLid = CampArtSet.Node(_imported, "RightLid");
+            _mouth = CampArtSet.Node(_imported, "Mouth");
+            _importedRenderers = _imported.GetComponentsInChildren<Renderer>(true);
+            _variantProps = new[] { CampArtSet.Node(_imported, "VariantScarf"), CampArtSet.Node(_imported, "VariantGoggles"), CampArtSet.Node(_imported, "VariantLeaf") };
+        }
+
+        private Arm ImportedArm(string label, float side)
+        {
+            var shoulder = CampArtSet.Node(_imported, label + "Shoulder");
+            return new Arm { Shoulder = shoulder, Elbow = CampArtSet.Node(_imported, label + "Elbow"),
+                Hand = CampArtSet.Node(_imported, label + "Hand"), Origin = shoulder.localPosition, Side = side };
         }
 
         private void BuildBody()
@@ -213,6 +238,17 @@ namespace GoldCamp.Demo
 
         private void BuildTools()
         {
+            var pick = CampArtSet.Spawn("Pickaxe", _rightArm.Hand);
+            var detector = CampArtSet.Spawn("Detector", _rightArm.Hand);
+            if (pick != null && detector != null)
+            {
+                _pickaxe = pick; _pickaxe.localPosition = new Vector3(0f, -.025f, .035f);
+                _detector = detector; _detector.localPosition = new Vector3(0f, .04f, .07f);
+                _detector.localRotation = Quaternion.Euler(0,180,0);
+                return;
+            }
+            if (pick != null) Destroy(pick.gameObject);
+            if (detector != null) Destroy(detector.gameObject);
             _pickaxe = Joint(_rightArm.Hand, "Pickaxe", new Vector3(0f, -.025f, .035f));
             Cylinder(_pickaxe, "Wooden pick handle", new Vector3(0f, .16f, 0f), new Vector3(.04f, .65f, .04f), 4, Leather);
             Cylinder(_pickaxe, "Wrapped pick grip", new Vector3(0f, -.053f, 0f), new Vector3(.052f, .18f, .052f), 6, Boot);
@@ -238,6 +274,7 @@ namespace GoldCamp.Demo
             Cylinder(_bottle, "Bottle neck", new Vector3(0f, .208f, 0f), new Vector3(.043f, .059f, .043f), 2, Metal);
             Box(_bottle, "Bottle pale label", new Vector3(0f, .043f, .052f), new Vector3(.047f, .08f, .008f), 7, new Color(.91f, .9f, .73f));
             _pipe = Joint(_body, "Smoking pipe", new Vector3(.029f, 1.293f, .257f));
+            if (_imported != null) _pipe.localPosition = _mouth.localPosition + new Vector3(.018f,0,.006f);
             Cylinder(_pipe, "Pipe stem", new Vector3(.022f, -.014f, .09f), new Vector3(.018f, .205f, .018f), 4, Boot, Quaternion.Euler(90f, 0f, -8f));
             Cylinder(_pipe, "Pipe bowl", new Vector3(.025f, .008f, .203f), new Vector3(.078f, .099f, .078f), 4, Leather);
             Cylinder(_pipe, "Pipe dark bowl opening", new Vector3(.025f, .061f, .203f), new Vector3(.058f, .009f, .058f), 6, Boot);
@@ -283,7 +320,7 @@ namespace GoldCamp.Demo
             _name.text = "MINER";
         }
 
-        public void Pose(PublicMiner miner, CampView view, bool hasHand, ItemKind handKind, bool assisting)
+        public void Pose(PublicMiner miner, CampView view, bool hasHand, ItemKind handKind, bool assisting, float? animationTime = null)
         {
             if (!_ready || miner == null || view == null) return;
             if (_minerId != miner.Id)
@@ -300,6 +337,13 @@ namespace GoldCamp.Demo
                 _colorIndex = miner.ColorIndex;
                 Color patch = TeamColor(_colorIndex);
                 foreach (Renderer renderer in _patches) Tint(renderer, patch);
+                if (_imported != null)
+                {
+                    var variants = CampArtSet.Current.MinerVariants;
+                    int index = Mathf.Clamp(_colorIndex, 0, variants.Length - 1);
+                    foreach (var renderer in _importedRenderers) renderer.sharedMaterial = variants[index];
+                    for (int i = 0; i < _variantProps.Length; i++) _variantProps[i].gameObject.SetActive(index == i + 1);
+                }
                 RefreshName();
             }
             float dt = Mathf.Clamp(Time.unscaledDeltaTime, .001f, .1f);
@@ -310,7 +354,7 @@ namespace GoldCamp.Demo
             _havePosition = true;
             _motion = seated ? 0f : Mathf.MoveTowards(_motion, Mathf.Clamp01(speed / 3f), dt * 6f);
             if (!seated) _stepPhase += dt * Mathf.Lerp(2f, 9f, _motion);
-            float time = Time.unscaledTime + _phaseOffset;
+            float time = (animationTime ?? Time.unscaledTime) + _phaseOffset;
             float step = Mathf.Sin(_stepPhase), alternate = Mathf.Sin(_stepPhase + Mathf.PI);
             bool actionActive = miner.ActionUntil > view.OnlineSeconds;
             bool climbing = !seated && !string.IsNullOrEmpty(miner.ClimbingLadderId);
@@ -322,7 +366,7 @@ namespace GoldCamp.Demo
             bool smoking = !seated && actionActive && miner.Action == "smoke";
             bool drinking = !seated && actionActive && miner.Action == "drink";
             float bob = Mathf.Abs(step) * .016f * _motion;
-            _body.localPosition = seated ? SeatedBodyOffset : new Vector3(0f, bob, 0f);
+            _body.localPosition = seated ? SeatedBodyOffset : new Vector3(0f, bob, climbing ? -.22f : 0f);
             _labelRoot.localPosition = new Vector3(0f, 1.99f, 0f) + (seated ? SeatedBodyOffset : Vector3.zero);
             _body.localRotation = seated ? Quaternion.identity : Quaternion.Euler(stunned ? 13f : robbing ? 18f + Mathf.Sin(time * 5f) * 2f : 0f,
                 swingingPickaxe ? Mathf.Sin(time * 10f) * 7f : 0f,
@@ -342,8 +386,9 @@ namespace GoldCamp.Demo
             else if (climbing)
             {
                 float climb = Mathf.Sin(time * 5f) * .10f * Mathf.Clamp01(_motion * 2f);
-                left = new Vector3(-.26f, 1.48f + climb, .24f);
-                right = new Vector3(.26f, 1.48f - climb, .24f);
+                left = new Vector3(-.26f, 1.44f + climb, .36f);
+                right = new Vector3(.26f, 1.44f - climb, .36f);
+                if (hasHand) right = new Vector3(handKind == ItemKind.HeavyOre ? .31f : .21f, handKind == ItemKind.HeavyOre ? 1.02f : .96f, .40f);
                 _leftLeg.localRotation = Quaternion.Euler(-43f + climb * 130f, 0f, -4f);
                 _rightLeg.localRotation = Quaternion.Euler(-43f - climb * 130f, 0f, 4f);
                 _leftKnee.localRotation = Quaternion.Euler(62f - climb * 160f, 0f, 0f);
@@ -364,32 +409,41 @@ namespace GoldCamp.Demo
             else if (swingingPickaxe)
             {
                 float stroke = .5f + .5f * Mathf.Sin(time * 11f);
-                right = Vector3.Lerp(new Vector3(.33f, 1.59f, .11f), new Vector3(.12f, .98f, .46f), stroke);
-                left = Vector3.Lerp(new Vector3(-.10f, 1.3f, .31f), new Vector3(-.13f, .96f, .4f), stroke);
+                right = Vector3.Lerp(new Vector3(.10f, 1.27f, .26f), new Vector3(.10f, 1.02f, .36f), stroke);
             }
             else if (detecting)
             {
                 right = new Vector3(.18f + Mathf.Sin(time * 3f) * .10f, 1.02f, .41f);
                 left = new Vector3(-.30f, .81f, .12f);
             }
-            if (drinking) right = new Vector3(.155f, 1.13f, .34f);
+            if (drinking) right = new Vector3(.14f, 1.14f, .32f);
             if (smoking) left = new Vector3(-.19f, 1.08f, .27f);
             if (stunned && !seated) { left = new Vector3(-.53f, .88f, -.035f); right = new Vector3(.53f, .88f, -.035f); }
             AimArm(_leftArm, left);
             AimArm(_rightArm, right);
             _pickaxe.gameObject.SetActive(!seated && !hasHand && !assisting && !climbing && !detecting && !drinking && !smoking && !robbing && !stunned);
             _pickaxe.localRotation = Quaternion.Euler(swingingPickaxe ? -38f : 17f, 0f, -12f);
+            if (swingingPickaxe)
+            {
+                float stroke = .5f + .5f * Mathf.Sin(time * 11f);
+                var gripRotation = Quaternion.Euler(Mathf.Lerp(-15f,65f,stroke),0,-45f);
+                _rightArm.Hand.rotation = _body.rotation * gripRotation;
+                _pickaxe.localRotation = Quaternion.identity;
+                // Both hands follow the same physical handle, including its tilt.
+                AimArm(_leftArm, _body.InverseTransformPoint(_pickaxe.TransformPoint(new Vector3(0,-.14f,0))));
+                _leftArm.Hand.rotation = _body.rotation * gripRotation;
+            }
             _detector.gameObject.SetActive(detecting && !stunned);
             _bottle.gameObject.SetActive(drinking && !stunned);
             if (drinking)
             {
                 Vector3 bottleOrigin = _body.InverseTransformPoint(_rightArm.Hand.position) + _bottle.localPosition;
-                _bottle.localRotation = Quaternion.FromToRotation(Vector3.up, new Vector3(0f, 1.293f, .27f) - bottleOrigin);
+                _bottle.localRotation = Quaternion.FromToRotation(Vector3.up, _body.InverseTransformPoint(_mouth.position) - bottleOrigin);
             }
             _pipe.gameObject.SetActive(smoking && !stunned);
             _stars.gameObject.SetActive(stunned);
             _stars.localRotation = Quaternion.Euler(0f, time * 100f, 0f);
-            CarryAnchor.localPosition = new Vector3(0f, 1f, handKind == ItemKind.HeavyOre ? .93f : .66f);
+            CarryAnchor.localPosition = CarryLocalPosition(handKind);
             PoseFace(miner.CheeksFull, smoking, drinking, stunned, time);
             if (smoking && !stunned) PoseSmoke(time);
         }
@@ -437,6 +491,17 @@ namespace GoldCamp.Demo
 
         private void PoseFace(bool cheeks, bool smoking, bool drinking, bool stunned, float time)
         {
+            if (_imported != null)
+            {
+                _leftCheek.localScale = _rightCheek.localScale = cheeks ? new Vector3(1.72f, 1.58f, 3.15f) : Vector3.one;
+                _leftCheek.localPosition = new Vector3(-.145f,1.306f,cheeks?.253f:.211f);
+                _rightCheek.localPosition = new Vector3(.145f,1.306f,cheeks?.253f:.211f);
+                _mouth.localScale = drinking ? new Vector3(.44f, 2.84f, 1.54f) : cheeks ? new Vector3(.56f, 1.58f, 1.38f) : Vector3.one;
+                float blinkAmount = Mathf.Repeat(time, 4.4f) > 4.24f ? 1f : 0f;
+                float closeAmount = stunned ? .8f : drinking ? 1f : smoking ? .65f : blinkAmount;
+                _leftLid.localScale = _rightLid.localScale = new Vector3(1f, Mathf.Lerp(.025f, 1f, closeAmount), 1f);
+                return;
+            }
             Vector3 cheekSize = cheeks ? new Vector3(.206f, .19f, .173f) : new Vector3(.12f, .12f, .055f);
             _leftCheek.localScale = cheekSize;
             _rightCheek.localScale = cheekSize;

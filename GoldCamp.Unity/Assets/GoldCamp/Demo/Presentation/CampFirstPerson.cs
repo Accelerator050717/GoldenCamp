@@ -13,36 +13,58 @@ namespace GoldCamp.Demo
             _root = new GameObject("First person hands").transform; _root.SetParent(Controls.Camera.transform,false);
             _right = new GameObject("Right grip").transform; _right.SetParent(_root,false);
             _left = new GameObject("Left grip").transform; _left.SetParent(_root,false);
-            Piece(_right,PrimitiveType.Sphere,Vector3.zero,new Vector3(.16f,.18f,.22f),6);
-            Piece(_left,PrimitiveType.Sphere,Vector3.zero,new Vector3(.16f,.18f,.22f),6);
+            var rightGlove = CampArtSet.Spawn("GloveRight", _right);
+            var leftGlove = CampArtSet.Spawn("GloveLeft", _left);
+            if (rightGlove == null) Piece(_right,PrimitiveType.Sphere,Vector3.zero,new Vector3(.16f,.18f,.22f),6);
+            if (leftGlove == null) Piece(_left,PrimitiveType.Sphere,Vector3.zero,new Vector3(.16f,.18f,.22f),6);
+            _pick = CampArtSet.Spawn("Pickaxe", _right);
+            if (_pick == null) {
             _pick = new GameObject("View pickaxe").transform; _pick.SetParent(_right,false);
             Piece(_pick,PrimitiveType.Cylinder,new Vector3(0,.1f,0),new Vector3(.045f,.29f,.045f),4);
             Piece(_pick,PrimitiveType.Cube,new Vector3(0,.38f,0),new Vector3(.43f,.08f,.06f),2);
+            }
+            _detector = CampArtSet.Spawn("Detector", _right);
+            if (_detector == null) {
             _detector = new GameObject("View detector").transform; _detector.SetParent(_right,false);
             Piece(_detector,PrimitiveType.Cylinder,new Vector3(0,0,.19f),new Vector3(.035f,.24f,.035f),2,Quaternion.Euler(90,0,0));
             Piece(_detector,PrimitiveType.Cylinder,new Vector3(0,-.03f,.43f),new Vector3(.28f,.015f,.28f),6);
             Piece(_detector,PrimitiveType.Cube,new Vector3(0,.08f,.13f),new Vector3(.11f,.1f,.15f),5);
+            }
             _bottle = new GameObject("View bottle").transform; _bottle.SetParent(_right,false);
+            _detector.localRotation = Quaternion.Euler(0,180,0);
             Piece(_bottle,PrimitiveType.Cylinder,new Vector3(0,.04f,0),new Vector3(.09f,.13f,.09f),5);
             Piece(_bottle,PrimitiveType.Cylinder,new Vector3(0,.2f,0),new Vector3(.045f,.055f,.045f),5);
             _pipe = new GameObject("View pipe").transform; _pipe.SetParent(_right,false);
             Piece(_pipe,PrimitiveType.Cylinder,new Vector3(0,.025f,.05f),new Vector3(.06f,.05f,.06f),4);
             Piece(_pipe,PrimitiveType.Cylinder,new Vector3(0,.03f,-.035f),new Vector3(.018f,.09f,.018f),4,Quaternion.Euler(90,0,0));
+            foreach (var renderer in _root.GetComponentsInChildren<Renderer>()) {
+                renderer.gameObject.layer = 2;
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
         }
         private void LateUpdate()
         {
             var view=Session.View;var self=view?.Self==null?null:view.Players.Find(p=>p.Id==view.Self.Id);
             if(_root==null)return; _root.gameObject.SetActive(self!=null&&self.VehicleSeat<0&&!Application.isBatchMode);
             if(self==null)return;
+            bool climbing=!string.IsNullOrEmpty(self.ClimbingLadderId);
+            _root.rotation=climbing?Quaternion.identity:Controls.Camera.transform.rotation;
             var hand=view.Items.Find(i=>i.OwnerId==self.Id&&i.Place==ItemPlace.Hand);
             bool active=self.ActionUntil>view.OnlineSeconds,smoke=active&&self.Action=="smoke",drink=active&&self.Action=="drink";
             bool swing=active&&(self.Action=="mine"||self.Action=="attack");
-            _right.localPosition=hand!=null?new Vector3(.3f,-.47f,.75f):new Vector3(.4f,-.36f,.7f);
-            _left.localPosition=new Vector3(-.3f,-.47f,.75f);_left.gameObject.SetActive(hand!=null);
+            bool heavy = hand != null && hand.Kind == ItemKind.HeavyOre;
+            _right.localPosition=hand!=null?new Vector3(heavy?.39f:.22f,-.61f,heavy?.53f:.43f):new Vector3(.34f,-.34f,.66f);
+            _left.localPosition=new Vector3(-_right.localPosition.x,-.61f,_right.localPosition.z);_left.gameObject.SetActive(hand!=null);
             _right.localRotation=Quaternion.Euler(swing?-25+Mathf.Sin(Time.unscaledTime*13)*48:12,0,-12);
+            if(climbing) {
+                _left.gameObject.SetActive(true);_left.localPosition=new Vector3(-.26f,-.18f,.14f);
+                _left.localRotation=Quaternion.Euler(0,0,90);
+                _right.localPosition=hand!=null?new Vector3(heavy?.31f:.21f,-.61f,heavy?.31f:.21f):new Vector3(.26f,-.18f,.14f);
+                _right.localRotation=hand!=null?Quaternion.identity:Quaternion.Euler(0,0,90);
+            } else _left.localRotation=Quaternion.identity;
             if(smoke||drink){_right.localPosition=new Vector3(.14f,-.24f,.37f);_right.localRotation=Quaternion.Euler(drink?-55:10,0,-15);}
-            _pick.gameObject.SetActive(hand==null&&!smoke&&!drink&&Controls.CurrentTool==1);
-            _detector.gameObject.SetActive(hand==null&&!smoke&&!drink&&Controls.CurrentTool==2);
+            _pick.gameObject.SetActive(!climbing&&hand==null&&!smoke&&!drink&&Controls.CurrentTool==1);
+            _detector.gameObject.SetActive(!climbing&&hand==null&&!smoke&&!drink&&Controls.CurrentTool==2);
             _bottle.gameObject.SetActive(drink);_pipe.gameObject.SetActive(smoke);
         }
         private void Piece(Transform parent,PrimitiveType type,Vector3 position,Vector3 size,int material,Quaternion? rotation=null)

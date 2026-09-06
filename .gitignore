@@ -27,6 +27,8 @@ Builds/
 *.lic
 *.log
 __pycache__/
+*.blend1
+*.blend2
 .venv/
 Saves/
 TestSaves/

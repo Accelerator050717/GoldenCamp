@@ -1,0 +1,218 @@
+{
+  "SourceHash": "6a6c31b8f122fda603a05efd94df175892506ac12d98e6462b3ed69baff960c8",
+  "Images": [
+    {
+      "File": "images/front.png",
+      "Source": "Builds/ArtReview/20260906-201329/front.png",
+      "Sha256": "77d08dbfbdd28c5d63412097314e8946f51f8fa67bb1ddf101c8dcb7df1eac1c",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/side.png",
+      "Source": "Builds/ArtReview/20260906-201329/side.png",
+      "Sha256": "6ff0111442104c6121a2f95b855c7fe547458c1c6bccaa17ffc7f6b64422b8c4",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/back.png",
+      "Source": "Builds/ArtReview/20260906-201329/back.png",
+      "Sha256": "fc9f4d1e4626c3d4a2d51d2df130cf9a1b85edbdb9edce29bc8aa87d66204d94",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/three-quarter.png",
+      "Source": "Builds/ArtReview/20260906-201329/three-quarter.png",
+      "Sha256": "5763f981799aa715159bd9d9f05fe4e7f55c158b501425192fb9a4d40af5857e",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/walk.png",
+      "Source": "Builds/ArtReview/20260906-201329/walk.png",
+      "Sha256": "dade4d3269a3e49c7af4b8312888c2cfb0fd121d3adaa83ae6ee6363e68d0d78",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/cheeks.png",
+      "Source": "Builds/ArtReview/20260906-201329/cheeks.png",
+      "Sha256": "b81df60982e0e8e23416e4c21bbb2b2e8922e969f9d583f2fc3e0420be03fd45",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/smoke.png",
+      "Source": "Builds/ArtReview/20260906-201329/smoke.png",
+      "Sha256": "9fe1b4ddd67c9523e617a1abd8d8f7827d700cf11386ccedf6ef0832fb4135c1",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/drink.png",
+      "Source": "Builds/ArtReview/20260906-201329/drink.png",
+      "Sha256": "4d039b4cace5463542f55cfb101df6d6a2c91275f6fb2509d2fa6a37f88505c1",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/detect.png",
+      "Source": "Builds/ArtReview/20260906-201329/detect.png",
+      "Sha256": "61495b0c51e4e16364ebbb8bade549750d586591c8c64e78ecf62362050df6cf",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/swing.png",
+      "Source": "Builds/ArtReview/20260906-201329/swing.png",
+      "Sha256": "5459395648ad921637d2786de1296beb0d271d2f576a5b2082729c5cf945432d",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/carry.png",
+      "Source": "Builds/ArtReview/20260906-201329/carry.png",
+      "Sha256": "fd9256249e85b71b8248e32724c11ab28c5298708c53802ab02f03155d705200",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/ladder.png",
+      "Source": "Builds/ArtReview/20260906-201329/ladder.png",
+      "Sha256": "3db52060e7aaf550e7ea67846998499a1b77558248621e0f52d44d4dc18c8f00",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/stunned.png",
+      "Source": "Builds/ArtReview/20260906-201329/stunned.png",
+      "Sha256": "2909a4d8c19fc3140c3f90aab5c84bd2c57a76c36efb97c14e01bf626f6642f7",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/driver.png",
+      "Source": "Builds/ArtReview/20260906-201329/driver.png",
+      "Sha256": "4a4576f5ff88b557aeba497991ee4972925e34673eed379e797753829048bf23",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/passenger.png",
+      "Source": "Builds/ArtReview/20260906-201329/passenger.png",
+      "Sha256": "c65a77a99ea07efa4d4ebe32c9a6e0941364ba660905b3f64fb38260e2919755",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/variant-red.png",
+      "Source": "Builds/ArtReview/20260906-201329/variant-red.png",
+      "Sha256": "ebeafd212454382afccde2c0af463bfa4ccf1e1f4db1da80ad50da5593030c25",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/variant-blue.png",
+      "Source": "Builds/ArtReview/20260906-201329/variant-blue.png",
+      "Sha256": "19e971d37697a91b77e74ff3b18e10d116e29f83e5a5348aff9c4e3d57cefdd1",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/variant-green.png",
+      "Source": "Builds/ArtReview/20260906-201329/variant-green.png",
+      "Sha256": "dbfe9c4ed8454ba2cd691100a3bd0f8604c1125d601d8be4499e94293fc8aa96",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-Pickaxe.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-Pickaxe.png",
+      "Sha256": "7a4b8dc634deb40b922e3fa0def337ec7d5b0c00991c36964bb94583893c9663",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-Detector.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-Detector.png",
+      "Sha256": "d84fc4991a980a39974b9fef1f0f6307fbc870b1a6ca3ea3062d4180611de73d",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-GloveRight.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-GloveRight.png",
+      "Sha256": "aa85592adc1f185bf4a5008082ee9f88ba2dc472cd28b598b2bfa61f594cd51c",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-GoldOre.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-GoldOre.png",
+      "Sha256": "7bca25469f7e9591ff3753d09195a80cfdeec66024a1a6f3ddddb690e2a9d5f9",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-RawClosed.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-RawClosed.png",
+      "Sha256": "d39ddbb30c430624587ca03ecd226cb8803d4a984044b9a06503e9634b929943",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-RawWindow.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-RawWindow.png",
+      "Sha256": "1dd6198af0caf36eb42383888f363d7fad8b3b99af95a80a38a5356399196a9b",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-RawOpenGold.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-RawOpenGold.png",
+      "Sha256": "8e9d70a5aaa52bf160989c04318a8f6ba9a8e392da5f07864420bfda8ef08b93",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-RawOpenIron.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-RawOpenIron.png",
+      "Sha256": "b04877c6370468f09ef1b791003337ebb942cc5434b0811dc9e0b6c11242c6ab",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-WoodCrate.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-WoodCrate.png",
+      "Sha256": "1b58a84705221ac9ac244dcfaa6084c46b366572e566e822050f6509aa4742f5",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-Ladder.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-Ladder.png",
+      "Sha256": "52b09067706cad210571e71cfdd4f7ea9eb96172a519147245ac7ee7f0d508e8",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-CabinCorner.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-CabinCorner.png",
+      "Sha256": "6b1fd14a80585113e84eea1295cdf612bd7308f792b05b76ea4986683230d902",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-MarketStall.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-MarketStall.png",
+      "Sha256": "990e78d9f4f7e59090983ac1e8e49e9b42178787b7d7ddf8976ac26593d361f1",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-PineSample.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-PineSample.png",
+      "Sha256": "e9cc854590419b9acbe9595ac9ea6bdbda63db5e932398c79d9df2feb57db393",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/prop-RockSample.png",
+      "Source": "Builds/ArtReview/20260906-201329/prop-RockSample.png",
+      "Sha256": "f290164fca9c6702d92761f4cded30c4c66520fa93c9877e41378cce6af9263f",
+      "Category": "Unity imported model and runtime pose preview"
+    },
+    {
+      "File": "images/first-person-cabin.png",
+      "Source": ".local/VisualRuns/F-20260906-132113-db6662/first-person-cabin.png",
+      "Sha256": "08bab866557b40b35727daf2e636088c5e9333f47c4a3cd15b16ce7ea71a59fe",
+      "Category": "Windows game window capture"
+    },
+    {
+      "File": "images/first-person-market.png",
+      "Source": ".local/VisualRuns/F-20260906-132113-db6662/first-person-market.png",
+      "Sha256": "e9d40ecbad18a609256195c9e9819b601a337c756b98a7782658d46534010b21",
+      "Category": "Windows game window capture"
+    },
+    {
+      "File": "images/first-person-detector.png",
+      "Source": ".local/VisualRuns/F-20260906-132630-98cd05/first-person-detector.png",
+      "Sha256": "bd324c0679dff3b81a9a081fb9c7b0defde9e3114138e2f8f0fbfbfefa7d7ce9",
+      "Category": "Windows game window capture"
+    }
+  ],
+  "HumanPlaytest": false,
+  "AppearanceApproved": false,
+  "Note": "Unedited actual Unity model previews and Windows game captures; static poses do not prove continuous animation quality."
+}
