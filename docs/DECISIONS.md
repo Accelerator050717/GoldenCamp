@@ -1,4 +1,17 @@
-# M0 实际决定
+# 工程决定
+
+## 当前 v0.3
+
+- 用户最新明确任务取代 M0 阶段上限，连续实施活动任务 `tasks/DemoPrototype_v0.3.md`。复用 M0，不重建项目。
+- 永久营地、世界内个人资产、有限坑永久开挖；默认继续存档。两处采区、短途四座车、基础语音、烟酒和托管赌桌不能默默删减。
+- 继续单一 FishNet 候选，不同时安装第二网络框架。自有 Steam/AppID 尚无配置证据，先核验免费开发条件与实际账户权限，不擅自支付。
+- 原四张主参考及新增两张辅助图已实际查看；采用可复现程序模型/程序动作，资产不得只用图片或全部胶囊白盒冒充。
+- 功能分支 `feat/demo-persistent-v03`，验证后正常提交推送，不合并 main。
+- FishNet 固定维护者 release `4.7.3`，Git commit `73f30cf2425dc808a4f463f0a233d386010810b3`；该提交 package.json 自报 `4.7.2`，以实际 lock 的 hash 为准。先用随包 Tugboat 验证真实本机/LAN 协议；Steam 传输和账户验证后接同一业务层。[维护者版本](https://github.com/FirstGearGames/FishNet/releases/tag/4.7.3)。
+- 存档为完整世界快照，`world.camp.json` + `.bak1/.bak2`，SHA256 envelope、文件独占锁、临时文件 Flush 和原子主档替换。交易确认在完整快照落盘后发出；坏档/未来格式拒绝静默新建，测试目录与真人目录隔离。
+- Steamworks 页面真实未登录，不能把无本地 AppID 推断成用户没有项目。新应用官方费用为每款 100 USD，超出本轮新增支出 0；仅查询现有权限，任何付款/合同/发布需本人处理。[官方应用费](https://partner.steamgames.com/doc/gettingstarted/appfee)。
+
+## M0 历史决定（阶段范围已由上节更新）
 
 1. 复用 Hub 现有任务安装 Unity 6.3 LTS `6000.3.23f1`（revision `09d2ecc7fb28`），现已安装并完成真实工程创建，不切换 6.6。工程版本锁定在 ProjectVersion.txt。[官方版本页](https://unity.com/releases/editor/whats-new/6000.3.23f1)。
 2. 根目录 `M:\GoldCamp` 单仓库，工程子目录 `GoldCamp.Unity`。保留原始设计 Markdown，不复制长 GDD。

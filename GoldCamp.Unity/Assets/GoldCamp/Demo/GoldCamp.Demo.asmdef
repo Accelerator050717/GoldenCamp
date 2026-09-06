@@ -1,0 +1,6 @@
+{
+  "name": "GoldCamp.Demo",
+  "rootNamespace": "GoldCamp.Demo",
+  "references": ["FishNet.Runtime"],
+  "autoReferenced": true
+}

@@ -11,7 +11,7 @@ All logs/results are unique files under Builds/Logs. No editor is downloaded her
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('CreateProject', 'Generate', 'EditModeTests', 'PlayModeTests', 'Build', 'SmokeAutomation')]
+    [ValidateSet('CreateProject', 'Compile', 'Generate', 'DemoGenerate', 'EditModeTests', 'PlayModeTests', 'Build', 'DemoBuild', 'SmokeAutomation')]
     [string]$Action,
     [string]$EditorPath,
     [ValidateRange(30, 7200)]
@@ -108,10 +108,12 @@ try {
         $unityArguments.Add('-testResults')
         $unityArguments.Add($resultPath)
     } else {
-        if ($Action -ne 'CreateProject') {
+        if ($Action -notin @('CreateProject', 'Compile')) {
             $method = switch ($Action) {
                 'Generate' { 'GoldCamp.Editor.M0Setup.CreateScene' }
                 'Build' { 'GoldCamp.Editor.M0Build.BuildWindows' }
+                'DemoGenerate' { 'GoldCamp.Demo.Editor.DemoSetup.Generate' }
+                'DemoBuild' { 'GoldCamp.Demo.Editor.DemoSetup.BuildWindows' }
                 'SmokeAutomation' { 'GoldCamp.Editor.M0Automation.Run' }
             }
             $unityArguments.Add('-executeMethod')
@@ -155,8 +157,8 @@ try {
         throw "Editor exited without creating ProjectVersion.txt. See $logPath"
     }
     $buildPath = $null
-    if ($Action -eq 'Build') {
-        $buildPath = Join-Path $workspaceRoot 'Builds\M0\Windows\GoldCamp.exe'
+    if ($Action -in @('Build', 'DemoBuild')) {
+        $buildPath = Join-Path $workspaceRoot $(if ($Action -eq 'DemoBuild') { 'Builds\DemoPrototype\Windows\GoldCamp.exe' } else { 'Builds\M0\Windows\GoldCamp.exe' })
         if (-not (Test-Path -LiteralPath $buildPath -PathType Leaf)) { throw "Build did not produce $buildPath. See $logPath" }
         foreach ($requiredPath in @((Join-Path (Split-Path $buildPath -Parent) 'UnityPlayer.dll'), (Join-Path (Split-Path $buildPath -Parent) 'GoldCamp_Data'))) {
             if (-not (Test-Path -LiteralPath $requiredPath)) { throw "Build is missing required companion output: $requiredPath" }

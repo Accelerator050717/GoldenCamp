@@ -6,7 +6,10 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/GoldCamp/Demo/Scenes/Demo_Camp.unity
+    guid: b0c168e68fbcdc141bc484ee63926737
+  - enabled: 1
     path: Assets/GoldCamp/Scenes/M0_Graybox.unity
-    guid: 00000000000000000000000000000000
+    guid: 34a20daf1fe100b48a0b7faed351c083
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0

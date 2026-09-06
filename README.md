@@ -1,6 +1,20 @@
 # GoldCamp / 淘金营地
 
-当前阶段：M0 工程底座与单人灰盒。Unity 工程与灰盒已生成，**EditMode 2/2、PlayMode 12/12 通过**，Editor API 与 MCP 烟测已通过。Windows 构建及启动已验证，完整人工操作待用户验收；完整证据和当前结果见 [STATUS](docs/STATUS.md)。
+当前阶段：在 M0 上持续实现 v0.3 永久营地多人雏形，活动分支 `feat/demo-persistent-v03`，进度见 [活动任务](docs/tasks/DemoPrototype_v0.3.md)。Demo 尚未交付；下方 M0 入口与 2/2 EditMode、12/12 PlayMode 结果保留为历史基线。真实证据见 [STATUS](docs/STATUS.md)。
+
+当前 A 检查点已通过：47/47 EditMode、12/12 M0 PlayMode、50/50 真实双进程资产/保存重开检查。继续 B，不把当前资产开发界面当成完整试玩版。
+
+Demo 的实际入口（从根目录执行，关闭本项目 Editor）：
+
+```powershell
+.\Tools\Invoke-Unity.ps1 -Action DemoGenerate -WithGraphics
+.\Tools\Invoke-Unity.ps1 -Action EditModeTests
+.\Tools\Invoke-Unity.ps1 -Action PlayModeTests -WithGraphics
+.\Tools\Invoke-Unity.ps1 -Action DemoBuild -WithGraphics
+.\Tools\Test-DemoNetwork.ps1
+```
+
+`DemoGenerate` 只重建 Demo 的生成场景并保留已有规则配置；不读写玩家存档。当前包 `Builds/DemoPrototype/Windows/GoldCamp.exe` 可进入继续/独立新建/地址加入菜单。默认端口 7770。实际玩家数据位于 Windows 的 `%USERPROFILE%\AppData\LocalLow\GoldCamp\GoldCamp`：`Identity/player.json` 是玩家身份，`Camps/<WorldId>` 是各自永久营地及两份备份。备份时先正常退出房主，再复制完整目录；不要分享身份文件。测试器仅使用独立 `.local/TestRuns` 标记目录。
 
 - 根目录：`M:\GoldCamp`
 - 工程：`M:\GoldCamp\GoldCamp.Unity`
@@ -43,4 +57,4 @@ Windows x64 Mono Development 构建已成功，运行 `M:\GoldCamp\Builds\M0\Win
 
 唯一桥接为 CoplayDev MCP for Unity `10.2.0`，提交固定为 `30d22075093d1d35dfb0091c1c7550e9ad948577`。已完成本项目实例的 17 步真实 MCP 烟测，Editor API 烟测也已独立通过；两者的证据分别列在 STATUS。项目内入口及配置样例见 [AUTOMATION](docs/AUTOMATION.md)，不需要修改全局 Codex/MCP 配置。
 
-本轮范围仅单人灰盒与工程底座。网络、Steam、经济、存档、采矿和正式美术未实现。环境与决定见 [ENVIRONMENT](docs/ENVIRONMENT.md)、[DECISIONS](docs/DECISIONS.md)。
+当前范围以 `Demo启动包_v0.3` 和活动任务为准，网络、存档、采矿、社交、成长与语音正在连续实施。环境与决定见 [ENVIRONMENT](docs/ENVIRONMENT.md)、[DECISIONS](docs/DECISIONS.md)。

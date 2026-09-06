@@ -1,0 +1,7 @@
+{
+  "name": "GoldCamp.Demo.Editor",
+  "rootNamespace": "GoldCamp.Demo.Editor",
+  "references": ["GoldCamp.Demo"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

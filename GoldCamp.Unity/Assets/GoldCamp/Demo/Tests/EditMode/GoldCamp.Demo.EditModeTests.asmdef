@@ -1,0 +1,8 @@
+{
+  "name": "GoldCamp.Demo.EditModeTests",
+  "rootNamespace": "GoldCamp.Demo.Tests",
+  "references": ["GoldCamp.Demo"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 057404a8b06193648a0caa7c07c533d1, type: 3}
+  m_Name: DemoConfig
+  m_EditorClassIdentifier: GoldCamp.Demo::GoldCamp.Demo.DemoConfig
+  Rules:
+    Reach: 3
+    WalkSpeed: 4.5
+    SoloCarryMultiplier: 0.33
+    TeamCarryMultiplier: 0.7
+    AutoSaveSeconds: 30
+    PocketSlots: 4
+    MoneyLimit: 1000000000
+    StonePrice: 3
+    IronPrice: 12
+    GoldPrice: 55
+    HeavyPrice: 140
+    RawUnopenedPrice: 35
+    RepairPrice: 12
+    UpgradePrice: 180
+    RoadPrice: 400
+    RoadIron: 8
+    WindowPrice: 3
+    OpenPrice: 5
+    StunSeconds: 2
+    ProtectionSeconds: 4
+    RiverRespawnSeconds: 600

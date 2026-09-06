@@ -28,6 +28,10 @@ Builds/
 *.log
 __pycache__/
 .venv/
+Saves/
+TestSaves/
+*.camp.json
+*.camp.json.*
 
 # Preserve source archives locally; version the original Markdown only.
 intro/
