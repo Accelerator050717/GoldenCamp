@@ -102,6 +102,19 @@ try {
     }
     $isTest = $Action -in @('EditModeTests', 'PlayModeTests')
     if ($isTest) {
+        # A retained/open Demo scene can Awake when the PlayMode runner enters.
+        # Keep any such profile access in a fresh marked root as well as player tests.
+        $editorTestsParent = Join-Path $workspaceRoot '.local/EditorTests'
+        foreach ($testParent in @((Join-Path $workspaceRoot '.local'), $editorTestsParent)) {
+            if ((Test-Path -LiteralPath $testParent) -and ((Get-Item -LiteralPath $testParent).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+                throw 'Refusing a redirected Editor test root.'
+            }
+        }
+        $editorTestRoot = Join-Path $editorTestsParent $runId
+        if (Test-Path -LiteralPath $editorTestRoot) { throw 'Editor test root already exists; refusing reuse.' }
+        [IO.Directory]::CreateDirectory($editorTestRoot) | Out-Null
+        [IO.File]::WriteAllText((Join-Path $editorTestRoot '.goldcamp-test-root'), 'GoldCamp isolated Editor test profile.')
+        $unityArguments.Add('--gc-test-root'); $unityArguments.Add($editorTestRoot)
         $unityArguments.Add('-runTests')
         $unityArguments.Add('-testPlatform')
         $unityArguments.Add($(if ($Action -eq 'EditModeTests') { 'EditMode' } else { 'PlayMode' }))
@@ -167,6 +180,15 @@ try {
         if (-not (Test-Path -LiteralPath $buildPath -PathType Leaf)) { throw "Build did not produce $buildPath. See $logPath" }
         foreach ($requiredPath in @((Join-Path (Split-Path $buildPath -Parent) 'UnityPlayer.dll'), (Join-Path (Split-Path $buildPath -Parent) 'GoldCamp_Data'))) {
             if (-not (Test-Path -LiteralPath $requiredPath)) { throw "Build is missing required companion output: $requiredPath" }
+        }
+        if ($Action -eq 'DemoBuild') {
+            $sourceFingerprint = & (Join-Path $PSScriptRoot 'Get-UnitySourceFingerprint.ps1')
+            $builtCommit = (& git -C $workspaceRoot rev-parse HEAD).Trim()
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot record build source revision.' }
+            [ordered]@{ BuiltUtc = [DateTime]::UtcNow.ToString('O'); Unity = $actualVersion; CommitAtBuild = $builtCommit
+                Source = $sourceFingerprint; RuntimeFiles = @(& (Join-Path $PSScriptRoot 'Get-PlayerRuntimeFiles.ps1'))
+                Log = [IO.Path]::GetFileName($logPath); Development = $true } |
+                ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path (Split-Path $buildPath -Parent) 'build-info.json') -Encoding utf8NoBOM
         }
     }
     [pscustomobject]@{ Action = $Action; EditorVersion = $actualVersion; ExitCode = $exitCode; LogPath = $logPath; Tests = $testSummary; BuildPath = $buildPath }

@@ -47,7 +47,8 @@ namespace GoldCamp.Demo.Tests
         [Test]
         public void OtherPlayersPrivateSlotsAreAbsentWhileOwnSlotsAndPublicItemsRemainVisible()
         {
-            var state = World();
+            var state = WithUnlockedVehicle(World());
+            string[] initialPublicIds = state.Items.Select(i => i.Id).ToArray();
             foreach (var place in new[] { ItemPlace.Pocket, ItemPlace.Mouth, ItemPlace.Cabinet })
             {
                 state.Items.Add(Item("own-" + place, place, ViewerId));
@@ -57,7 +58,10 @@ namespace GoldCamp.Demo.Tests
             }
             state.Items.Add(Item("world-ground", ItemPlace.Ground));
             state.Items.Add(Item("other-hand", ItemPlace.Hand, OtherId));
-            state.Items.Add(Item("public-cart", ItemPlace.Vehicle, OtherId));
+            var cargo = Item("public-cart", ItemPlace.Vehicle);
+            cargo.ContainerId = CampMap.VehicleCargoContainer(0);
+            cargo.Position = CampMap.CargoPoint(state.Vehicle, 0);
+            state.Items.Add(cargo);
             state.Items.Add(Item("already-sold", ItemPlace.Sold, ViewerId));
             var authority = Authority(state);
             string json = JsonUtility.ToJson(CampProjection.ForPlayer(authority, ViewerId));
@@ -66,7 +70,7 @@ namespace GoldCamp.Demo.Tests
             Assert.That(decoded.Items.Select(i => i.Id), Is.EquivalentTo(new[]
             {
                 "own-Pocket", "own-Mouth", "own-Cabinet", "world-ground", "other-hand", "public-cart"
-            }));
+            }.Concat(initialPublicIds)));
             foreach (var place in new[] { ItemPlace.Pocket, ItemPlace.Mouth, ItemPlace.Cabinet })
             {
                 Assert.That(json, Does.Not.Contain("private-other-" + place));
@@ -80,6 +84,10 @@ namespace GoldCamp.Demo.Tests
             Assert.That(publicHand.Version, Is.EqualTo(6));
             Assert.That(publicHand.Quantity, Is.EqualTo(1));
             Assert.That(publicHand.Position, Is.EqualTo(new Vector3(2, 3, 4)));
+            var publicCargo = decoded.Items.Single(i => i.Id == "public-cart");
+            Assert.That(publicCargo.OwnerId, Is.Empty);
+            Assert.That(publicCargo.Place, Is.EqualTo(ItemPlace.Vehicle));
+            Assert.That(publicCargo.ContainerId, Is.EqualTo(CampMap.VehicleCargoContainer(0)));
             Assert.That(decoded.Players.Single(p => p.Id == OtherId).CheeksFull, Is.True,
                 "The public cheek hint must not reveal the private mouth item ID or contents.");
         }
@@ -177,6 +185,24 @@ namespace GoldCamp.Demo.Tests
                     Message = "private-receipt-result-marker", Amount = OtherBalance }
             });
             return state;
+        }
+
+        private static CampState WithUnlockedVehicle(CampState state)
+        {
+            // Fixture preparation may initialize a world. The actual projection
+            // authority below retains its assertion that viewing never persists.
+            var setup = new CampAuthority(state, new CampRules(), ignored => { });
+            setup.InitializeMining();
+            setup.InitializeProgression();
+            var next = CampCodec.Clone(setup.State);
+            next.RoadCoinsPaid = next.RoadRequiredCoins;
+            next.RoadIronPaid = next.RoadRequiredIron;
+            next.RoadUnlocked = true;
+            next.RoadVersion = 1;
+            next.Contributions.Add(new CampContribution
+                { PlayerId = OtherId, Coins = next.RoadRequiredCoins, Iron = next.RoadRequiredIron });
+            setup.Commit(next);
+            return CampCodec.Clone(setup.State);
         }
 
         private static CampItem Item(string id, ItemPlace place, string owner = "") =>

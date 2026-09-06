@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 
 namespace GoldCamp.Demo
@@ -22,7 +23,15 @@ namespace GoldCamp.Demo
             session.ViewChanged += Snapshot;
             File.WriteAllText(Path.Combine(_root, "process.json"), "{\"pid\":" + System.Diagnostics.Process.GetCurrentProcess().Id + "}");
         }
-        private void Snapshot(CampView view) => File.WriteAllText(Path.Combine(_root, "view.json"), JsonUtility.ToJson(view));
+        private void Snapshot(CampView view)
+        {
+            // A diagnostics reader may briefly hold this test-only file. Never
+            // let observer I/O escape into FishNet's gameplay event dispatch.
+            // The next view retries the latest complete state; persistent I/O
+            // failure remains visible to the harness as a stale snapshot.
+            try { File.WriteAllText(Path.Combine(_root, "view.json"), JsonUtility.ToJson(view)); }
+            catch (IOException) { }
+        }
         private void Result(CampResult result) => File.AppendAllText(Path.Combine(_root, "results.jsonl"), JsonUtility.ToJson(result) + "\n");
         private void Update()
         {
@@ -60,12 +69,50 @@ namespace GoldCamp.Demo
                 catch (ArgumentException) { return; }
                 _consumed++;
                 if (command.Action == "shutdown") _session.EndSession(true);
+                else if (command.Action == "voice_test")
+                {
+                    var voice = _session.GetComponent<CampVoice>();
+                    bool valid = voice != null && (command.TargetId == "off" || command.TargetId == "tone" || command.TargetId == "mic");
+                    if (valid) voice.SetTestMode(command.TargetId, command.OtherPlayerId);
+                    Result(new CampResult { RequestId = command.RequestId, Success = valid,
+                        Code = valid ? "ok" : "voice_mode", Message = "Development local audio control",
+                        Revision = _session.View?.Revision ?? 0 });
+                }
                 else _session.SendCommand(command);
             }
         }
         private void OnDestroy()
         {
             if (_session != null) { _session.CommandResult -= Result; _session.ViewChanged -= Snapshot; }
+        }
+
+        // A marked Development capacity fixture, never a normal gameplay route.
+        // Original finite yields remain intact; the fixture models a long-lived
+        // camp with every cell excavated, supported ladders, and unsold cargo.
+        public static void FillMineCapacity(CampAuthority authority, string contributor)
+        {
+            if (!Debug.isDebugBuild) throw new InvalidOperationException("Development fixture only.");
+            authority.InitializeMining(); authority.InitializeProgression();
+            var state = CampCodec.Clone(authority.State);
+            if (state.Cells.Any(cell => cell.Dug) || state.Ladders.Count != 0)
+                throw new InvalidOperationException("Capacity fixture requires a fresh mine.");
+            state.RoadCoinsPaid = state.RoadRequiredCoins; state.RoadIronPaid = state.RoadRequiredIron;
+            state.RoadUnlocked = true; state.RoadVersion = 2;
+            state.Contributions.Add(new CampContribution { PlayerId = contributor,
+                Coins = state.RoadRequiredCoins, Iron = state.RoadRequiredIron });
+            foreach (var player in state.Players) { player.ToolLevel = 2; player.LadderStock = 0; }
+            foreach (var cell in state.Cells)
+            {
+                cell.Dug = true; cell.Health = 0; cell.Version = 10;
+                float height = cell.YieldKind == ItemKind.HeavyOre ? .65f : .35f;
+                for (int i = 0; i < cell.YieldCount; i++)
+                    state.Items.Add(new CampItem { Id = "yield:" + cell.Id + ":" + i, Kind = cell.YieldKind,
+                        Place = ItemPlace.Ground, Position = CampMap.CellCenter(cell, authority.Rules) + Vector3.up * (height - authority.Rules.CellSize * .5f),
+                        HiddenValue = cell.HiddenValue, CoreKind = cell.CoreKind, RawClueBand = cell.RawClueBand, RawWindowBand = cell.RawWindowBand });
+                state.Ladders.Add(new CampLadder { Id = "ladder:" + cell.Id, CellId = cell.Id, PitId = cell.PitId,
+                    X = cell.X, Depth = cell.Depth, Z = cell.Z, Version = 1 });
+            }
+            CampAuthority.Validate(state); authority.Commit(state);
         }
     }
 }

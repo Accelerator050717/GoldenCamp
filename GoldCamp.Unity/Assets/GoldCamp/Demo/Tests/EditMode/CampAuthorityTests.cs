@@ -264,21 +264,22 @@ namespace GoldCamp.Demo.Tests
         [Test]
         public void NormalSaveRetainsCarryWhileRepeatedDisconnectDropsSmallItemsIntoOneBag()
         {
-            var state = World();
+            var state = WithUnlockedVehicle(World());
             state.Items.Add(Item("heavy", ItemPlace.Hand, FirstId, ItemKind.HeavyOre));
             state.Items.Add(Item("pocket", ItemPlace.Pocket, FirstId));
             state.Items.Add(Item("mouth", ItemPlace.Mouth, FirstId));
             state.Items.Add(Item("safe", ItemPlace.Cabinet, FirstId));
             state.Items.Add(Item("bet", ItemPlace.Escrow, FirstId, ItemKind.RawStone));
             state.Items.Add(Item("bet-other", ItemPlace.Escrow, SecondId, ItemKind.RawStone));
-            state.Items.Add(Item("vehicle", ItemPlace.Vehicle, FirstId));
+            state.Items.Add(Item("vehicle", ItemPlace.Vehicle));
             state.Items.Single(i => i.Id == "safe").ContainerId = "personal-cabinet";
             string wagerId = Guid.NewGuid().ToString("N");
             state.Items.Single(i => i.Id == "bet").ContainerId = "wager:" + wagerId;
             state.Items.Single(i => i.Id == "bet").HiddenValue = 50;
             state.Items.Single(i => i.Id == "bet-other").ContainerId = "wager:" + wagerId;
             state.Items.Single(i => i.Id == "bet-other").HiddenValue = 30;
-            state.Items.Single(i => i.Id == "vehicle").ContainerId = "camp-cart";
+            state.Items.Single(i => i.Id == "vehicle").ContainerId = CampMap.VehicleCargoContainer(0);
+            state.Items.Single(i => i.Id == "vehicle").Position = CampMap.CargoPoint(state.Vehicle, 0);
             state.Wager = new CampWager
             {
                 Id = wagerId, PlayerA = FirstId, PlayerB = SecondId, StoneA = "bet", StoneB = "bet-other",
@@ -287,6 +288,7 @@ namespace GoldCamp.Demo.Tests
             };
             var authority = Authority(state);
             string before = Assets(authority.State);
+            string[] originalItemIds = state.Items.Select(i => i.Id).ToArray();
 
             authority.Save();
 
@@ -312,7 +314,8 @@ namespace GoldCamp.Demo.Tests
             string once = Assets(authority.State);
             authority.Disconnect(FirstId);
             Assert.That(Assets(authority.State), Is.EqualTo(once));
-            Assert.That(authority.State.Items.Count, Is.EqualTo(7));
+            Assert.That(authority.State.Items.Select(i => i.Id), Is.EquivalentTo(originalItemIds),
+                "Neither carried cargo nor initialized river resources may be duplicated or removed by disconnect.");
             Assert.That(Assets(_saved), Is.EqualTo(once));
         }
 
@@ -405,6 +408,24 @@ namespace GoldCamp.Demo.Tests
             state.Players.Add(new CampPlayer { Id = FirstId, Name = "甲", CredentialHash = CampAuthority.Hash(Credential), Balance = 100, Position = Vector3.zero });
             state.Players.Add(new CampPlayer { Id = SecondId, Name = "乙", CredentialHash = CampAuthority.Hash(Credential), Balance = 20, Position = Vector3.zero });
             return state;
+        }
+
+        private static CampState WithUnlockedVehicle(CampState state)
+        {
+            var setup = new CampAuthority(state, new CampRules(), ignored => { });
+            setup.InitializeMining();
+            setup.InitializeProgression();
+            var next = CampCodec.Clone(setup.State);
+            // This historical fixture starts after voluntary payment; its account
+            // balances are already the retained balances tested by save/disconnect.
+            next.RoadCoinsPaid = next.RoadRequiredCoins;
+            next.RoadIronPaid = next.RoadRequiredIron;
+            next.RoadUnlocked = true;
+            next.RoadVersion = 1;
+            next.Contributions.Add(new CampContribution
+                { PlayerId = FirstId, Coins = next.RoadRequiredCoins, Iron = next.RoadRequiredIron });
+            setup.Commit(next);
+            return CampCodec.Clone(setup.State);
         }
 
         private static CampItem Item(string id, ItemPlace place, string owner = "", ItemKind kind = ItemKind.Stone) =>

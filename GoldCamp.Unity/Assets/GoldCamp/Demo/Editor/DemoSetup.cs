@@ -35,9 +35,15 @@ namespace GoldCamp.Demo.Editor
             var hud = root.AddComponent<CampHud>(); hud.Session = session;
             hud.InterfaceFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/GoldCamp/Demo/Fonts/NotoSansCJKsc-Regular.otf");
             root.AddComponent<CampSimulation>().Session = session;
+            root.AddComponent<CampVehicleMotion>().Session = session;
             var world = root.AddComponent<CampWorld>(); world.Session = session;
             world.NameFont = hud.InterfaceFont;
             var controls = root.AddComponent<CampControls>(); controls.Session = session; controls.Hud = hud; hud.Controls = controls;
+            var voice = root.AddComponent<CampVoice>(); voice.Session = session;
+            var voicePanel = root.AddComponent<CampVoicePanel>(); voicePanel.Session = session; voicePanel.Voice = voice;
+            root.AddComponent<CampSound>().Session = session;
+            var display = root.AddComponent<CampDisplaySettings>(); display.Session = session; display.Controls = controls;
+            root.AddComponent<CampPerformanceSample>().Session = session;
             var camera = new GameObject("Main Camera").AddComponent<Camera>();
             camera.tag = "MainCamera";
             camera.transform.position = new Vector3(12, 13, -17);
@@ -55,20 +61,13 @@ namespace GoldCamp.Demo.Editor
                 Material("Iron",new Color(.35f,.4f,.43f)), Material("Gold",new Color(1,.7f,.1f)), Material("Wood",new Color(.38f,.22f,.11f)),
                 Material("Miner",new Color(.35f,.65f,.27f)), Material("Clothes",new Color(.15f,.19f,.19f)), Material("Hardhat",new Color(1,.75f,.12f)) };
             var hands=root.AddComponent<CampFirstPerson>();hands.Controls=controls;hands.Session=session;hands.Palette=world.Palette;
-            // Four solid banks leave a real hole for runtime finite mine cells.
-            Box("West bank",new Vector3(-23,-4.5f,20),new Vector3(34,9,90),world.Palette[0]);
-            Box("East bank",new Vector3(23,-4.5f,20),new Vector3(34,9,90),world.Palette[0]);
-            Box("South bank",new Vector3(0,-4.5f,-2.5f),new Vector3(12,9,45),world.Palette[0]);
-            Box("North bank",new Vector3(0,-4.5f,48.5f),new Vector3(12,9,33),world.Palette[0]);
-            Box("Pit bedrock",new Vector3(0,-8.5f,26),new Vector3(12,1,12),world.Palette[1]);
-            Box("Boundary west",new Vector3(-40,1,20),new Vector3(.6f,3,90),world.Palette[1]);
-            Box("Boundary east",new Vector3(40,1,20),new Vector3(.6f,3,90),world.Palette[1]);
-            Box("Boundary south",new Vector3(0,1,-25),new Vector3(80,3,.6f),world.Palette[1]);
-            Box("Boundary north",new Vector3(0,1,65),new Vector3(80,3,.6f),world.Palette[1]);
+            var terrain=root.AddComponent<CampTerrain>();terrain.Session=session;terrain.Ground=world.Palette[0];
+            terrain.Rock=world.Palette[1];terrain.Timber=world.Palette[4];terrain.Configure(config.Rules);
             Station("收购台", "station", "sale", CampAuthority.SalePoint, world.Palette[4]);
             Station("维修台", "station", "repair", CampMap.RepairPoint, world.Palette[2]);
             Station("原石加工", "station", "cutter", CampMap.CutterPoint, world.Palette[4]);
             Station("原石对赌", "station", "wager", CampMap.WagerPoint, world.Palette[4]);
+            Station("公共修车", "station", "road", CampMap.VehicleMaintenancePoint, world.Palette[4]);
             for (int i=0;i<4;i++) Station("个人储物柜 " + (i+1), "cabinet", i.ToString(), CampMap.CabinetPoint(i) + Vector3.right * (i<2?-1f:1f), world.Palette[4]);
             CampArtBuilder.Build(hud.InterfaceFont);
             if (!EditorSceneManager.SaveScene(scene, ScenePath)) throw new IOException("Demo scene could not be saved.");
@@ -77,6 +76,7 @@ namespace GoldCamp.Demo.Editor
             EditorBuildSettings.scenes = others.ToArray();
             PlayerSettings.bundleVersion = "0.3.0-prototype";
             PlayerSettings.runInBackground = true;
+            PlayerSettings.enableFrameTimingStats = true;
             AssetDatabase.SaveAssets();
             Debug.Log("GOLDCAMP_DEMO_GENERATE_OK " + ScenePath);
         }
@@ -115,7 +115,21 @@ namespace GoldCamp.Demo.Editor
             Directory.CreateDirectory(licenses);
             File.Copy(Path.Combine(Application.dataPath,"GoldCamp/Demo/Fonts/LICENSE.txt"),Path.Combine(licenses,"Noto-OFL.txt"),true);
             File.Copy(Path.Combine(Application.dataPath,"GoldCamp/Demo/Fonts/SOURCE.md"),Path.Combine(licenses,"Noto-source.md"),true);
+            CopyPackageLicense("com.firstgeargames.fishnet", "LICENSE.txt", licenses, "FishNet-LICENSE.txt");
+            CopyPackageLicense("com.firstgeargames.fishnet", "THIRD PARTY NOTICE.md", licenses, "FishNet-THIRD-PARTY-NOTICE.md");
+            CopyPackageLicense("com.adrenak.concentus-unity", "LICENSE", licenses, "Concentus-LICENSE.txt");
+            File.WriteAllText(Path.Combine(licenses, "Dependency-sources.txt"),
+                "FishNet release 4.7.3, source commit 73f30cf2425dc808a4f463f0a233d386010810b3\n" +
+                "https://github.com/FirstGearGames/FishNet/tree/73f30cf2425dc808a4f463f0a233d386010810b3\n" +
+                "Concentus Unity 1.0.1, source commit f1564332c43ddf36f9129c5fca51d73c7b47d1fb\n" +
+                "https://github.com/adrenak/concentus-unity/tree/f1564332c43ddf36f9129c5fca51d73c7b47d1fb\n");
             Debug.Log("GOLDCAMP_DEMO_BUILD_OK " + output + "; bytes=" + report.summary.totalSize);
+        }
+        private static void CopyPackageLicense(string packageName, string file, string output, string name)
+        {
+            var package = UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/" + packageName);
+            if (package == null) throw new InvalidOperationException("Missing resolved dependency " + packageName);
+            File.Copy(Path.Combine(package.resolvedPath, file), Path.Combine(output, name), true);
         }
     }
 }

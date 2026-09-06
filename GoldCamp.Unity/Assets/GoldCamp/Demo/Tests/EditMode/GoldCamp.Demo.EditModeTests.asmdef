@@ -1,7 +1,7 @@
 {
   "name": "GoldCamp.Demo.EditModeTests",
   "rootNamespace": "GoldCamp.Demo.Tests",
-  "references": ["GoldCamp.Demo"],
+  "references": ["GoldCamp.Demo", "Concentus-Unity.Runtime"],
   "includePlatforms": ["Editor"],
   "optionalUnityReferences": ["TestAssemblies"],
   "autoReferenced": false

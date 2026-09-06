@@ -166,13 +166,14 @@ namespace GoldCamp.Demo
                     { item.AssistantId = ""; item.Version++; }
                     ShowAction(state, actor, "escape", Rules.EscapeSeconds);
                     return Ok("正在返回营地，随身矿物会留在原地；移动或取消可中止。");
-                default: return ApplySocial(state, actor, command);
+                default: return ApplyProgression(state, actor, command);
             }
         }
 
         private CampResult Mine(CampState state, CampPlayer actor, CampCommand command)
         {
             var cell = GetCell(state, command);
+            Require(cell.PitId != CampMap.AdvancedPitId || state.RoadUnlocked, "road_locked", "请先完成旧车与进阶道路修复。");
             Require(!cell.Dug, "dug", "这块岩层已经挖空。");
             RequireHandsFree(state, actor);
             Require(string.IsNullOrEmpty(actor.ClimbingLadderId), "climbing", "请先离开梯子再挥镐。");
@@ -232,16 +233,16 @@ namespace GoldCamp.Demo
         {
             Vector3 relative = point - CampMap.CellCenter(cell, Rules);
             float edge = Rules.CellSize * .5f - .002f;
-            if (relative.y >= edge && (cell.Depth == 0 || CellIsDug(state, cell.X, cell.Depth - 1, cell.Z))) return true;
-            if (relative.y <= -edge && CellIsDug(state, cell.X, cell.Depth + 1, cell.Z)) return true;
-            if (relative.x >= edge && CellIsDug(state, cell.X + 1, cell.Depth, cell.Z)) return true;
-            if (relative.x <= -edge && CellIsDug(state, cell.X - 1, cell.Depth, cell.Z)) return true;
-            if (relative.z >= edge && CellIsDug(state, cell.X, cell.Depth, cell.Z + 1)) return true;
-            return relative.z <= -edge && CellIsDug(state, cell.X, cell.Depth, cell.Z - 1);
+            if (relative.y >= edge && (cell.Depth == 0 || CellIsDug(state, cell.PitId, cell.X, cell.Depth - 1, cell.Z))) return true;
+            if (relative.y <= -edge && CellIsDug(state, cell.PitId, cell.X, cell.Depth + 1, cell.Z)) return true;
+            if (relative.x >= edge && CellIsDug(state, cell.PitId, cell.X + 1, cell.Depth, cell.Z)) return true;
+            if (relative.x <= -edge && CellIsDug(state, cell.PitId, cell.X - 1, cell.Depth, cell.Z)) return true;
+            if (relative.z >= edge && CellIsDug(state, cell.PitId, cell.X, cell.Depth, cell.Z + 1)) return true;
+            return relative.z <= -edge && CellIsDug(state, cell.PitId, cell.X, cell.Depth, cell.Z - 1);
         }
 
-        private static bool CellIsDug(CampState state, int x, int depth, int z) =>
-            state.Cells.Any(cell => cell.PitId == CampMap.StarterPit && cell.X == x && cell.Depth == depth && cell.Z == z && cell.Dug);
+        private static bool CellIsDug(CampState state, string pitId, int x, int depth, int z) =>
+            state.Cells.Any(cell => cell.PitId == pitId && cell.X == x && cell.Depth == depth && cell.Z == z && cell.Dug);
 
         private CampResult Detect(CampState state, CampPlayer actor, CampCommand command)
         {

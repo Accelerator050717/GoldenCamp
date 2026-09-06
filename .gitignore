@@ -30,6 +30,8 @@ __pycache__/
 .venv/
 Saves/
 TestSaves/
+Identity/
+Profile/player.json
 *.camp.json
 *.camp.json.*
 

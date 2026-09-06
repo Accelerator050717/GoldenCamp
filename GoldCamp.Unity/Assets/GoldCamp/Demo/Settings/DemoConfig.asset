@@ -27,6 +27,9 @@ MonoBehaviour:
     RawUnopenedPrice: 35
     RepairPrice: 12
     UpgradePrice: 180
+    DetectorUpgradePrice: 90
+    MaxToolLevel: 2
+    MaxDetectorLevel: 1
     RoadPrice: 400
     RoadIron: 8
     WindowPrice: 3
@@ -64,3 +67,14 @@ MonoBehaviour:
     RobSeconds: 1
     SmokeSeconds: 6
     DrinkSeconds: 2.5
+    AdvancedWidth: 4
+    AdvancedLength: 4
+    AdvancedDepth: 5
+    AdvancedValueDepthBonus: 4
+    AdvancedHealthMultiplier: 1.6
+    VehicleCargoSlots: 4
+    VehicleSpeed: 8
+    VehicleReverseSpeed: 3
+    VehicleAcceleration: 5
+    VehicleTurnSpeed: 65
+    VehicleReach: 4

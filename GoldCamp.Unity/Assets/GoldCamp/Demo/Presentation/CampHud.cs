@@ -12,6 +12,7 @@ namespace GoldCamp.Demo
         public string Panel = "menu";
         private string _address = "127.0.0.1", _amount = "10";
         private string _stake = "10", _opponent = "", _stone = "";
+        private string _roadCoins = "50", _roadIron = "1";
         private Vector2 _scroll;
         private Font _font;
         private GUIStyle _title, _label;
@@ -34,6 +35,14 @@ namespace GoldCamp.Demo
                     + "\n" + view.Players.Count(p=>p.Online) + " / 4 人 · " + (view.PvpEnabled?"可击晕抢货":"和平营地")
                     + (self.StunnedUntil>view.OnlineSeconds?"\n短晕："+Mathf.CeilToInt((float)(self.StunnedUntil-view.OnlineSeconds))+" 秒":""), _label);
                 GUI.Label(new Rect(Screen.width / 2f - 5, Screen.height / 2f - 12, 20, 24), "+");
+                var voicePanel = GetComponent<CampVoicePanel>();
+                if (voicePanel != null)
+                {
+                    string voiceText = voicePanel.StatusText();
+                    float voiceHeight = _label.CalcHeight(new GUIContent(voiceText), 280) + 12;
+                    GUI.Box(new Rect(Screen.width - 310, 18, 292, voiceHeight), "");
+                    GUI.Label(new Rect(Screen.width - 304, 24, 280, voiceHeight), voiceText, _label);
+                }
                 string footer = Controls.Hint + "\n" + Session.Feedback + "\n1/2 工具 · E 互动 · Q 抛 · B 含/吐 · L 梯子 · Tab 物品/表演 · Esc 菜单";
                 float footerHeight = _label.CalcHeight(new GUIContent(footer), Screen.width - 60) + 16;
                 GUI.Box(new Rect(18, Screen.height - footerHeight - 18, Screen.width - 36, footerHeight), "");
@@ -58,12 +67,15 @@ namespace GoldCamp.Demo
                     if (Button("加入营地")) Session.Join(_address);
                 }
                 GUILayout.Label("Steam 邀请尚待账号条件接入；当前为开发检查点。", _label);
+                Settings();
             }
             else
             {
                 GUILayout.Label("金币 " + view.Self.Balance + " · 耐久 " + Mathf.CeilToInt(view.Self.Durability) + " · 梯子 " + view.Self.LadderStock, _label);
                 if (Panel == "sale" || Panel == "bag" || Panel == "cabinet" || Panel == "cutter") Inventory(view);
                 if (Panel == "wager") Wager(view);
+                if (Panel == "road") Road(view);
+                if (Panel == "vehicle") Vehicle(view);
                 if (Panel == "bagloot")
                 {
                     GUILayout.Label("公共掉落包 · 先到先取，个人柜与余额不在这里",_label);
@@ -72,6 +84,9 @@ namespace GoldCamp.Demo
                 }
                 if (Panel == "repair")
                 {
+                    GUILayout.Label("个人矿镐 " + view.Self.ToolLevel + " 级 · 探测附件 " + view.Self.DetectorLevel + " 级", _label);
+                    if(view.Self.ToolLevel<view.Rules.MaxToolLevel && Button("升级矿镐并修满 · " + view.Rules.UpgradePrice)) Controls.Send("upgrade_tool",version:view.Self.ToolLevel);
+                    if(view.Self.DetectorLevel<view.Rules.MaxDetectorLevel && Button("升级探测附件 · " + view.Rules.DetectorUpgradePrice)) Controls.Send("upgrade_detector",version:view.Self.DetectorLevel);
                     if (Button("金币维修 · " + view.Rules.RepairPrice)) Controls.Send("repair");
                     if (Button("铁料维修 · " + view.Rules.RepairIronCost)) Controls.Send("repair_material", "iron");
                     if (Button("石料维修 · " + view.Rules.RepairStoneCost)) Controls.Send("repair_material", "stone");
@@ -95,11 +110,14 @@ namespace GoldCamp.Demo
                 if (Panel == "menu")
                 {
                     GUILayout.Label("菜单只停用你的输入，营地继续运行。", _label);
+                    GUILayout.Label(view.RoadUnlocked ? "进阶道路已通 · 可步行或乘车前往北侧新坑" : "下一步：个人升级 → 自愿修车开路 → 进阶采矿", _label);
+                    if(view.Vehicle!=null && view.Vehicle.Seats.Contains(view.Self.Id) && Button("停车并安全下车"))Controls.Send("vehicle_exit",view.Vehicle.Id,view.Vehicle.Version);
                     if (Session.Authority != null && Button(view.PvpEnabled ? "切换为和平营地（关闭击晕/搜袋）" : "开启击晕与搜袋")) Controls.Send("pvp", amount:view.PvpEnabled?0:1);
                     GUILayout.Label("鼠标灵敏度 " + Controls.Sensitivity.ToString("F1"));
                     Controls.Sensitivity = GUILayout.HorizontalSlider(Controls.Sensitivity, .3f, 6f);
                     GUILayout.Label("视野 " + Mathf.RoundToInt(Controls.FieldOfView));
                     Controls.FieldOfView = GUILayout.HorizontalSlider(Controls.FieldOfView, 60, 100);
+                    Settings();
                     if (Button(view.Self.EscapeAt > 0 ? "取消返回营地" : "返回营地 · 4 秒引导，战利品留原地")) Controls.Send(view.Self.EscapeAt > 0 ? "cancel_escape" : "escape");
                     GUILayout.Label("最近保存 " + view.SavedUtc, _label);
                     if (Button(Session.Authority != null ? "保存并结束会话" : "离开营地（随身货物留包）")) Session.EndSession(false);
@@ -107,8 +125,70 @@ namespace GoldCamp.Demo
                 if (Button("返回游戏")) { Controls.SaveSettings(); Panel = ""; }
             }
             GUILayout.EndScrollView(); GUILayout.Label(Session.Feedback, _label);
-            if (Button("保存并退出游戏")) Session.EndSession(true);
+            if (Button(view?.Self != null && Session.Authority == null ? "离开并退出（随身货物留包）" : "保存并退出游戏")) Session.EndSession(true);
             GUILayout.EndArea();
+        }
+        private void Road(CampView view)
+        {
+            GUILayout.Label("公共旧车与进阶道路", _title);
+            GUILayout.Label("金币 " + view.RoadCoinsPaid + " / " + view.RoadRequiredCoins + " · 铁料 " + view.RoadIronPaid + " / " + view.RoadRequiredIron, _label);
+            GUILayout.Label("分次自愿贡献，只使用自己的余额和手中/口袋铁料；达到目标后所有人可用。", _label);
+            if(!view.RoadUnlocked)
+            {
+                GUILayout.Label("本次贡献金币"); _roadCoins=GUILayout.TextField(_roadCoins,10);
+                if(long.TryParse(_roadCoins,out long coins) && Button("确认贡献 " + coins + " 金币"))Controls.Send("contribute_coins",version:view.RoadVersion,amount:coins);
+                GUILayout.Label("本次贡献铁料"); _roadIron=GUILayout.TextField(_roadIron,3);
+                if(long.TryParse(_roadIron,out long iron) && Button("确认交出 " + iron + " 铁料"))Controls.Send("contribute_iron",version:view.RoadVersion,amount:iron);
+            }
+            else
+            {
+                GUILayout.Label("已修好 · 公共四座车在路旁；没上车的人可步行前往。",_label);
+                if(view.Vehicle!=null && Button("回收卡住的空车 · 货物留在旧处"))Controls.Send("vehicle_recover",view.Vehicle.Id,view.Vehicle.Version);
+            }
+            foreach(var entry in view.Contributions)
+                GUILayout.Label((view.Players.Find(p=>p.Id==entry.PlayerId)?.Name??"矿工") + "：" + entry.Coins + " 金币 / " + entry.Iron + " 铁料",_label);
+        }
+        private void Settings()
+        {
+            var sound = GetComponent<CampSound>();
+            if (sound != null)
+            {
+                GUILayout.Label("音效音量 " + Mathf.RoundToInt(sound.Effects * 100) + "%");
+                sound.Effects = GUILayout.HorizontalSlider(sound.Effects, 0, 1);
+                GUILayout.Label("环境音量 " + Mathf.RoundToInt(sound.Ambience * 100) + "%");
+                sound.Ambience = GUILayout.HorizontalSlider(sound.Ambience, 0, 1);
+            }
+            GetComponent<CampVoicePanel>()?.Settings();
+            GetComponent<CampDisplaySettings>()?.Settings();
+            if (Button("保存当前设置")) Controls.SaveSettings();
+        }
+        private void Vehicle(CampView view)
+        {
+            var car=view.Vehicle;if(car==null)return;
+            GUILayout.Label("营地运输车 · 四座公共货架",_title);
+            if(!view.RoadUnlocked)
+            {GUILayout.Label("旧车损坏，请到旁边维护台分次贡献修复。",_label);if(Button("查看公共修复"))Panel="road";return;}
+            GUILayout.Label("W/S 油门与倒车，A/D 转向；E 停车下车。工具留身，车货属于公共货架。",_label);
+            int ownSeat=car.Seats.IndexOf(view.Self.Id);
+            if(ownSeat>=0)
+            {if(Button("停车下车")){Controls.Send("vehicle_exit",car.Id,car.Version);Panel="";}}
+            else for(int seat=0;seat<car.Seats.Count;seat++)
+            {
+                string title=seat==0?"驾驶座":"乘客座 " + seat;
+                if(string.IsNullOrEmpty(car.Seats[seat]))
+                {if(Button("坐入 " + title)){Controls.Send("vehicle_enter",car.Id,car.Version,seat);Panel="";}}
+                else GUILayout.Label(title + " · " + (view.Players.Find(p=>p.Id==car.Seats[seat])?.Name??"矿工"),_label);
+            }
+            GUILayout.Space(10);GUILayout.Label("停车后任何靠近的人都可装卸；私人柜仍只归本人。",_label);
+            for(int slot=0;slot<car.CargoSlots;slot++)
+            {
+                var cargo=view.Items.Find(i=>i.Place==ItemPlace.Vehicle&&i.ContainerId==CampMap.VehicleCargoContainer(slot));
+                if(cargo==null)GUILayout.Label("货位 " + (slot+1) + " · 空",_label);
+                else if(Button("货位 " + (slot+1) + " · 取下 " + Name(cargo.Kind)))Controls.Send("vehicle_unload",cargo.Id,cargo.Version);
+            }
+            int free=Enumerable.Range(0,car.CargoSlots).Where(slot=>!view.Items.Any(i=>i.Place==ItemPlace.Vehicle&&i.ContainerId==CampMap.VehicleCargoContainer(slot))).DefaultIfEmpty(-1).First();
+            if(free>=0 && ownSeat<0)foreach(var cargo in view.Items.Where(i=>i.OwnerId==view.Self.Id&&(i.Place==ItemPlace.Hand||i.Place==ItemPlace.Pocket)))
+                if(Button("装入货位 " + (free+1) + "：" + Name(cargo.Kind)))Controls.Send("vehicle_load",cargo.Id,cargo.Version,free);
         }
         private void Inventory(CampView view)
         {

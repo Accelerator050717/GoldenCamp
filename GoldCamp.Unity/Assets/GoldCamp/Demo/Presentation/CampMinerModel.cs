@@ -47,6 +47,9 @@ namespace GoldCamp.Demo
         private static readonly Color Boot = new Color(.22f, .17f, .12f);
         private static readonly Color Gold = new Color(1f, .66f, .10f);
         private static readonly Color Metal = new Color(.35f, .38f, .38f);
+        // With hips at -90 degrees and knees at +90, this keeps the boot soles at
+        // the caller's seat foot origin while putting the hips behind the knees.
+        private static readonly Vector3 SeatedBodyOffset = new Vector3(0f, -.206f, -.21f);
 
         private void Awake()
         {
@@ -300,26 +303,28 @@ namespace GoldCamp.Demo
                 RefreshName();
             }
             float dt = Mathf.Clamp(Time.unscaledDeltaTime, .001f, .1f);
+            bool seated = miner.VehicleSeat >= 0;
             Vector3 position = transform.position;
             float speed = _havePosition ? Vector3.Distance(position, _lastPosition) / dt : 0f;
             _lastPosition = position;
             _havePosition = true;
-            _motion = Mathf.MoveTowards(_motion, Mathf.Clamp01(speed / 3f), dt * 6f);
-            _stepPhase += dt * Mathf.Lerp(2f, 9f, _motion);
+            _motion = seated ? 0f : Mathf.MoveTowards(_motion, Mathf.Clamp01(speed / 3f), dt * 6f);
+            if (!seated) _stepPhase += dt * Mathf.Lerp(2f, 9f, _motion);
             float time = Time.unscaledTime + _phaseOffset;
             float step = Mathf.Sin(_stepPhase), alternate = Mathf.Sin(_stepPhase + Mathf.PI);
             bool actionActive = miner.ActionUntil > view.OnlineSeconds;
-            bool climbing = !string.IsNullOrEmpty(miner.ClimbingLadderId);
+            bool climbing = !seated && !string.IsNullOrEmpty(miner.ClimbingLadderId);
             bool stunned = miner.StunnedUntil > view.OnlineSeconds;
-            bool swingingPickaxe = actionActive && (miner.Action == "mine" || miner.Action == "attack")
+            bool swingingPickaxe = !seated && actionActive && (miner.Action == "mine" || miner.Action == "attack")
                 && !hasHand && !assisting && !climbing && !stunned;
-            bool robbing = actionActive && miner.Action == "rob" && !hasHand && !assisting && !climbing && !stunned;
-            bool detecting = actionActive && miner.Action == "detect" && !hasHand && !climbing;
-            bool smoking = actionActive && miner.Action == "smoke";
-            bool drinking = actionActive && miner.Action == "drink";
+            bool robbing = !seated && actionActive && miner.Action == "rob" && !hasHand && !assisting && !climbing && !stunned;
+            bool detecting = !seated && actionActive && miner.Action == "detect" && !hasHand && !climbing;
+            bool smoking = !seated && actionActive && miner.Action == "smoke";
+            bool drinking = !seated && actionActive && miner.Action == "drink";
             float bob = Mathf.Abs(step) * .016f * _motion;
-            _body.localPosition = new Vector3(0f, bob, 0f);
-            _body.localRotation = Quaternion.Euler(stunned ? 13f : robbing ? 18f + Mathf.Sin(time * 5f) * 2f : 0f,
+            _body.localPosition = seated ? SeatedBodyOffset : new Vector3(0f, bob, 0f);
+            _labelRoot.localPosition = new Vector3(0f, 1.99f, 0f) + (seated ? SeatedBodyOffset : Vector3.zero);
+            _body.localRotation = seated ? Quaternion.identity : Quaternion.Euler(stunned ? 13f : robbing ? 18f + Mathf.Sin(time * 5f) * 2f : 0f,
                 swingingPickaxe ? Mathf.Sin(time * 10f) * 7f : 0f,
                 stunned ? Mathf.Sin(time * 5f) * 9f : -step * 1.7f * _motion);
 
@@ -330,7 +335,11 @@ namespace GoldCamp.Demo
             _rightLeg.localRotation = Quaternion.Euler(-legAngle, 0f, 2f);
             _leftKnee.localRotation = Quaternion.Euler(Mathf.Max(0f, -step) * 20f * _motion, 0f, 0f);
             _rightKnee.localRotation = Quaternion.Euler(Mathf.Max(0f, step) * 20f * _motion, 0f, 0f);
-            if (climbing)
+            if (seated)
+            {
+                PoseVehicleSeat(miner.VehicleSeat, out left, out right);
+            }
+            else if (climbing)
             {
                 float climb = Mathf.Sin(time * 5f) * .10f * Mathf.Clamp01(_motion * 2f);
                 left = new Vector3(-.26f, 1.48f + climb, .24f);
@@ -365,10 +374,10 @@ namespace GoldCamp.Demo
             }
             if (drinking) right = new Vector3(.155f, 1.13f, .34f);
             if (smoking) left = new Vector3(-.19f, 1.08f, .27f);
-            if (stunned) { left = new Vector3(-.53f, .88f, -.035f); right = new Vector3(.53f, .88f, -.035f); }
+            if (stunned && !seated) { left = new Vector3(-.53f, .88f, -.035f); right = new Vector3(.53f, .88f, -.035f); }
             AimArm(_leftArm, left);
             AimArm(_rightArm, right);
-            _pickaxe.gameObject.SetActive(!hasHand && !assisting && !climbing && !detecting && !drinking && !smoking && !robbing && !stunned);
+            _pickaxe.gameObject.SetActive(!seated && !hasHand && !assisting && !climbing && !detecting && !drinking && !smoking && !robbing && !stunned);
             _pickaxe.localRotation = Quaternion.Euler(swingingPickaxe ? -38f : 17f, 0f, -12f);
             _detector.gameObject.SetActive(detecting && !stunned);
             _bottle.gameObject.SetActive(drinking && !stunned);
@@ -383,6 +392,28 @@ namespace GoldCamp.Demo
             CarryAnchor.localPosition = new Vector3(0f, 1f, handKind == ItemKind.HeavyOre ? .93f : .66f);
             PoseFace(miner.CheeksFull, smoking, drinking, stunned, time);
             if (smoking && !stunned) PoseSmoke(time);
+        }
+
+        private void PoseVehicleSeat(int seat, out Vector3 left, out Vector3 right)
+        {
+            // Horizontal thighs, vertical shins and level boots. No root motion,
+            // walking, ladder cycling or suspension bob is inferred from car speed.
+            _leftLeg.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            _rightLeg.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            _leftKnee.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            _rightKnee.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            if (seat == 0)
+            {
+                // These grips align with the truck wheel at seat-local (0,.71,.22).
+                left = new Vector3(-.185f, .952f, .398f);
+                right = new Vector3(.185f, .952f, .398f);
+            }
+            else
+            {
+                // Relaxed elbows and mittens resting over the forward thighs.
+                left = new Vector3(-.255f, .745f, .19f);
+                right = new Vector3(.255f, .745f, .19f);
+            }
         }
 
         private static void AimArm(Arm arm, Vector3 target)

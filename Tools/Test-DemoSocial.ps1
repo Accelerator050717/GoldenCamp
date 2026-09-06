@@ -8,12 +8,15 @@ CampTestDriver consumes inbox.jsonl. commands.jsonl is an identical audit copy.
 Exercises mouth, performances, stun, pocket contention, raw processing, wagers and save reopening.
 Requires the Development-only --gc-test-social fixture. It does not prove human progression.
 This is automated loopback validation, not human input, LAN, Steam, or voice testing.
+Use -CrashOnWagerLock for the marked Development host's committed-lock hold,
+an intentional host process termination, and recovery from the same real save.
 Use -ValidateInputMathOnly to check movement calculations without files or player processes.
 #>
 [CmdletBinding()]
 param(
     [ValidateRange(10, 300)] [int]$TimeoutSeconds = 90,
     [switch]$WithGraphics,
+    [switch]$CrashOnWagerLock,
     [switch]$ValidateInputMathOnly
 )
 
@@ -245,6 +248,7 @@ function Start-Player([string]$Role, [string]$Phase, [bool]$NewWorld) {
     if ($Role -eq 'host') {
         $arguments.Add('--gc-host')
         if ($NewWorld) { $arguments.Add('--gc-new'); $arguments.Add('--gc-seed'); $arguments.Add([string]$socialSeed); $arguments.Add('--gc-test-social') }
+        if ($NewWorld -and $CrashOnWagerLock) { $arguments.Add('--gc-test-hold-wager-lock') }
     } else {
         $arguments.Add('--gc-connect'); $arguments.Add('127.0.0.1')
     }
@@ -256,7 +260,7 @@ function Start-Player([string]$Role, [string]$Phase, [bool]$NewWorld) {
     $entry = [pscustomobject]@{
         Role = $Role; Phase = $Phase; Root = $root; Process = $playerProcess
         Id = $playerProcess.Id; StartedUtc = [DateTime]::UtcNow.ToString('O')
-        LogPath = $logPath; ExpectedRunning = $true; Forced = $false
+        LogPath = $logPath; ExpectedRunning = $true; Forced = $false; IntentionalCrash = $false
     }
     $processes.Add($entry)
     $roles[$Role].CurrentProcess = $entry
@@ -280,11 +284,11 @@ function Stop-Player([string]$Role) {
     Assert-Check ($entry.Process.ExitCode -eq 0) "$Role/$($entry.Phase) exited normally" "PID $($entry.Id); exit $($entry.Process.ExitCode)"
 }
 
-function Archive-ControlFiles([string]$Role) {
+function Archive-ControlFiles([string]$Role, [string]$Prefix = 'first') {
     $entry = $roles[$Role]
-    foreach ($file in @('view.json', 'results.jsonl', 'inbox.jsonl', 'commands.jsonl', 'process.json', 'input.json', 'inputs.jsonl')) {
+    foreach ($file in @('view.json', 'results.jsonl', 'inbox.jsonl', 'commands.jsonl', 'process.json', 'input.json', 'inputs.jsonl', 'fault-lock.json')) {
         $source = Assert-TestPath (Join-Path $entry.Root $file)
-        $destination = Assert-TestPath (Join-Path $entry.Root ("first-$file"))
+        $destination = Assert-TestPath (Join-Path $entry.Root ("$Prefix-$file"))
         if (Test-Path -LiteralPath $source) { Move-Item -LiteralPath $source -Destination $destination }
     }
     $entry.InboxLines.Clear()
@@ -562,6 +566,108 @@ function Assert-SocialState($State, [string]$Label) {
     $null = Assert-OfflineBag $State $Label $offlineBag
 }
 
+function Recover-FromLockedWager($LockCommand, $LockResult) {
+    $fault = Wait-Until 'host marker for the normally committed locked wager' {
+        $marker = Read-JsonSnapshot (Join-Path $roles.host.Root 'fault-lock.json')
+        if ($null -eq $marker) { return $null }
+        return $marker.Data
+    }
+    Assert-Check ($fault['WorldId'] -ceq $worldId -and $fault['WagerId'] -ceq $LockCommand.TargetId -and
+        $fault['RequestId'] -ceq $LockCommand.RequestId -and [long]$fault['Revision'] -eq [long]$LockResult['Revision']) 'Fault marker identifies the exact successful lock transaction'
+    $lockedId = [string]$fault['WagerId']
+    $lockedItemVersions = @{}; $carriedBefore = @{}; $lockedTotal = 0L
+    $lockedWagerVersion = -1
+    foreach ($role in @('host', 'client')) {
+        $snapshot = Wait-View $role { param($view) $null -ne $view['Wager'] -and
+            $view['Wager']['Id'] -ceq $lockedId -and $view['Wager']['Phase'] -eq 1 -and
+            [long]$view['Revision'] -ge [long]$fault['Revision'] }
+        $wager = $snapshot.Data['Wager']
+        Assert-Check ($wager['ConfirmedA'] -and $wager['ConfirmedB'] -and $wager['Stake'] -eq $stake -and
+            $wager['ValueA'] -eq 0 -and $wager['ValueB'] -eq 0 -and [string]::IsNullOrEmpty($wager['WinnerId'])) "$role sees committed lock without the unrevealed outcome"
+        Assert-Check ($snapshot.Data['Self']['Balance'] -eq $expectedBalances[$role] - $stake) "$role paid exactly one locked stake before the crash"
+        $lockedTotal += [long]$snapshot.Data['Self']['Balance']
+        $escrow = @($snapshot.Data['Items'] | Where-Object { $_['Place'] -eq 6 })
+        Assert-Check ($escrow.Count -eq 2) "$role sees exactly two escrow stones before the crash"
+        foreach ($ownerRole in @('host', 'client')) {
+            $stone = Find-Entity $snapshot.Data 'Items' $rawIds[$ownerRole]
+            Assert-Check ($stone['Place'] -eq 6 -and $stone['OwnerId'] -ceq $playerIds[$ownerRole] -and
+                $stone['ContainerId'] -ceq ('wager:' + $lockedId) -and $stone['Quantity'] -eq 1 -and
+                $stone['RevealStage'] -eq 1 -and $stone['WindowBand'] -eq $windowBands[$ownerRole] -and
+                [string]::IsNullOrEmpty($stone['PublicCore'])) "$role receives the original $ownerRole stone in escrow"
+            if ($ownerRole -cne $role) {
+                Assert-Check ([string]::IsNullOrEmpty($stone['OwnClue'])) "$role cannot see the other escrow owner's private clue"
+            }
+            $lockedItemVersions[$rawIds[$ownerRole]] = [int]$stone['Version']
+        }
+        $carriedBefore[$role] = @($snapshot.Data['Items'] | Where-Object {
+            $_['OwnerId'] -ceq $playerIds[$role] -and $_['Place'] -in @(1, 2, 3) } | ForEach-Object {
+                @{ Id = $_['Id']; Place = $_['Place']; Quantity = $_['Quantity']; Version = $_['Version'] } })
+        $lockedWagerVersion = [int]$wager['Version']
+        Assert-Projection $snapshot $playerIds[$role] "locked-before-crash-$role"
+    }
+    Assert-Check ($lockedTotal + 2 * $stake -eq $expectedBalances.host + $expectedBalances.client) 'Two debited balances plus escrow pot conserve the pre-lock money'
+    $hostEntry = $roles.host.CurrentProcess
+    Assert-Check ($hostEntry.Role -ceq 'host' -and -not $hostEntry.Process.HasExited -and
+        $hostEntry.Root -ceq $roles.host.Root) 'Fault targets only the currently owned isolated host process'
+    $evidence.Scenario['WagerLockFault'] = [ordered]@{
+        Status = 'confirmed_locked'; WorldId = $worldId; WagerId = $lockedId; Revision = $fault['Revision']
+        RequestId = $LockCommand.RequestId; HostPid = $hostEntry.Id; LockedItemVersions = $lockedItemVersions
+        LockReceipt = $LockResult; IntentionalCrashUtc = [DateTime]::UtcNow.ToString('O')
+    }
+    $hostEntry.ExpectedRunning = $false; $hostEntry.IntentionalCrash = $true
+    $hostEntry.Process.Kill()
+    if (-not $hostEntry.Process.WaitForExit(10000)) { throw 'The owned locked-wager host did not terminate within the fault-injection deadline.' }
+    Assert-Check ($hostEntry.Process.HasExited -and -not $hostEntry.Forced) 'Intentional locked-wager host crash is separate from forced cleanup'
+    Stop-Player 'client'
+
+    # Read the unedited, checksummed main file only after the host has terminated.
+    # The hook pauses ticking and autosave; it never writes fabricated wager data.
+    $saved = Read-World $worldId
+    Assert-Check ([long]$saved['Revision'] -eq [long]$fault['Revision'] -and @($saved['Wagers']).Count -eq 1) 'The on-disk commit is the exact acknowledged locked revision'
+    $savedWager = $saved['Wagers'][0]
+    Assert-Check ($savedWager['Id'] -ceq $lockedId -and $savedWager['Phase'] -eq 1 -and
+        $savedWager['Version'] -eq $lockedWagerVersion -and @($saved['Items'] | Where-Object { $_['Place'] -eq 6 }).Count -eq 2) 'Actual save still contains the locked wager and two escrow items'
+    foreach ($role in @('host', 'client')) {
+        $player = Find-Entity $saved 'Players' $playerIds[$role]
+        $stone = Find-Entity $saved 'Items' $rawIds[$role]
+        Assert-Check ($player['Balance'] -eq $expectedBalances[$role] - $stake -and $stone['Place'] -eq 6 -and
+            $stone['OwnerId'] -ceq $playerIds[$role] -and $stone['ContainerId'] -ceq ('wager:' + $lockedId) -and
+            $stone['Version'] -eq $lockedItemVersions[$rawIds[$role]] -and $stone['HiddenValue'] -eq $fixtureValues[$role]) "$role original stake and stone were durably escrowed before host termination"
+    }
+    $receipt = @($saved['Receipts'] | Where-Object { $_['Key'] -ceq ($playerIds.client + ':' + $LockCommand.RequestId) })
+    Assert-Check ($receipt.Count -eq 1) 'The exact lock request has one durable on-disk receipt'
+    Assert-ResultSame $receipt[0]['Result'] $LockResult 'On-disk lock receipt matches the pre-crash acknowledgement'
+    foreach ($role in @('host', 'client')) { Archive-ControlFiles $role 'before-lock-recovery' }
+    Start-Player 'host' 'wager-recovery' $false
+    $null = Get-LiveView 'host'
+    Start-Player 'client' 'wager-recovery' $false
+    foreach ($role in @('host', 'client')) {
+        $snapshot = Wait-View $role { param($view) $view['WorldId'] -ceq $worldId -and
+            $view['Self']['Id'] -ceq $playerIds[$role] -and @($view['Players'] | Where-Object { $_['Online'] }).Count -eq 2 -and
+            $null -ne $view['Wager'] -and $view['Wager']['Id'] -ceq $lockedId -and $view['Wager']['Phase'] -eq 2 }
+        Assert-Check ($snapshot.Data['Wager']['Version'] -eq $lockedWagerVersion + 1 -and
+            @($snapshot.Data['Items'] | Where-Object { $_['Place'] -eq 6 }).Count -eq 0) "$role sees exactly one recovered settlement and no escrow residue"
+        $stone = Find-Entity $snapshot.Data 'Items' $rawIds[$role]
+        Assert-Check ($stone['Place'] -eq 4 -and $stone['OwnerId'] -ceq $playerIds[$role] -and
+            $stone['ContainerId'] -ceq ('cabinet:' + $playerIds[$role]) -and $stone['Version'] -eq $lockedItemVersions[$rawIds[$role]] + 1) "$role recovery returned the same stone to its original owner's cabinet once"
+        foreach ($held in $carriedBefore[$role]) {
+            $item = Find-Entity $snapshot.Data 'Items' $held.Id
+            Assert-Check ($item['OwnerId'] -ceq $playerIds[$role] -and $item['Place'] -eq $held.Place -and
+                $item['Quantity'] -eq $held.Quantity -and $item['Version'] -eq $held.Version) "$role unrelated carried item survived the committed save unchanged"
+        }
+        Assert-Projection $snapshot $playerIds[$role] "locked-recovery-settled-$role"
+    }
+    Send-Command 'client' $LockCommand
+    Assert-ResultSame (Wait-Result 'client' $LockCommand.RequestId).Entries[0] $LockResult 'Recovered final confirmation replays its original receipt'
+    foreach ($role in @('host', 'client')) {
+        $expected = if ($role -eq 'host') { $expectedBalances.host - $stake } else { $expectedBalances.client + $stake }
+        $snapshot = Wait-View $role { param($view) [long]$view['Self']['Balance'] -eq $expected }
+        Assert-Check ($snapshot.Data['Wager']['Version'] -eq $lockedWagerVersion + 1) "$role confirmation replay does not settle or charge a second time"
+    }
+    $evidence.Scenario.WagerLockFault.Status = 'recovered_once_from_unedited_locked_commit'
+    $evidence.NotValidated = @($evidence.NotValidated | Where-Object { $_ -ne 'locked-state crash timing' }) + @('uncontrolled wager crash timing')
+}
+
 try {
     foreach ($role in @('host', 'client')) {
         $root = Assert-TestPath (Join-Path $runRoot $role)
@@ -771,6 +877,7 @@ try {
     $lock = Wager-Command 'client' 'wager_confirm'
     $lockResult = Invoke-Action 'client' $lock
     $replays.Add(@{ Role = 'client'; Command = $lock; Result = $lockResult })
+    if ($CrashOnWagerLock) { Recover-FromLockedWager $lock $lockResult }
     $settled = Wait-View 'client' { param($view) $null -ne $view['Wager'] -and $view['Wager']['Phase'] -eq 2 }
     $wagerId = [string]$settled.Data['Wager']['Id']
     Assert-Check ($settled.Data['Wager']['ValueA'] -eq 120 -and $settled.Data['Wager']['ValueB'] -eq 240 -and
@@ -866,7 +973,7 @@ try {
         $exitCode = if ($entry.Process.HasExited) { $entry.Process.ExitCode } else { $null }
         $evidence.Processes += [ordered]@{
             Role = $entry.Role; Phase = $entry.Phase; Pid = $entry.Id; StartedUtc = $entry.StartedUtc
-            ExitCode = $exitCode; ForcedTermination = $entry.Forced; LogPath = $entry.LogPath; TestRoot = $entry.Root
+            ExitCode = $exitCode; ForcedTermination = $entry.Forced; IntentionalCrash = $entry.IntentionalCrash; LogPath = $entry.LogPath; TestRoot = $entry.Root
         }
     }
     $evidence.FinishedUtc = [DateTime]::UtcNow.ToString('O')

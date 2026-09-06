@@ -2,9 +2,24 @@
 
 ## 当前 v0.3
 
-以 `Demo启动包_v0.3/02_执行与验收.md` 的 A—F 与 T01—T18 为总验收，事实记录在 `tasks/DemoPrototype_v0.3.md`。当前 A—C 内部通过，D—F继续；最新109/109 EditMode，C社交213/213、B采矿130/130、A资产50/50均为真实本机双实例及重开测试，不是外网或真人证据。C含嘴槽/原石隐私/改筹码清确认/托管一次结算/掉包物理恢复；锁定中杀进程、异机语音与四人中美等仍在后续验收，不能整项冒充完成。
+以 `Demo启动包_v0.3/02_执行与验收.md` 的 A—F 与 T01—T18 为总验收，结果看 STATUS 和活动任务，不能凭脚本存在判断成功。A—D内部通过，E本机语音和F适用回归/原生输入已通过；分发与外部验收分别记录。运行中断后的精确断点保存在 `tasks/DemoPrototype_v0.3.md`。
 
-实际 Demo 入口依次为 `Invoke-Unity.ps1 -Action DemoGenerate -WithGraphics`、`EditModeTests`、受影响的 `PlayModeTests -WithGraphics`、`DemoBuild -WithGraphics`，再运行 `Test-DemoNetwork.ps1`、`Test-DemoMining.ps1`、`Test-DemoSocial.ps1`。脚本只创建 `.local/TestRuns` 标记测试根，真实存档不得用作 fixture。社交脚本用明确的开发素材起点测试规则，不能等同于从零挖矿的成长路线。
+从根目录执行 `Tools/Invoke-Unity.ps1 -Action DemoGenerate`、`EditModeTests`、受影响的 `PlayModeTests -WithGraphics`、`DemoBuild -WithGraphics`。Editor测试也使用独立标记根，所有玩家脚本只创建 `.local/TestRuns`；不使用真人存档。源代码或生成资源修改后重跑受影响验证。
+
+| 入口 | 覆盖与证据边界 |
+|---|---|
+| `Test-DemoNetwork.ps1` | 实际双进程抢矿、出售/分账幂等、身份和私有投影、保存重开。 |
+| `Test-DemoNetwork.ps1 -FullMineSnapshot -SnapshotReaderContention` | 明确的容量fixture：224格挖空、224梯、原始产物全保留；验证大投影通过真实网络和重开，另用真实读锁验证诊断阻塞不影响玩法，释放后恢复；不能冒充正常成长。 |
+| `Test-DemoMining.ps1` | 正常输入路线、实际向下挖矿与梯子搬运、协作加入退出、出售转账和坑梯重开。 |
+| `Test-DemoSocial.ps1 -CrashOnWagerLock` | 完整社交fixture，另在锁定提交后故意终止本脚本房主，验证原档一次结算和回放。预期故障与清理强杀分列。 |
+| `Test-DemoProgression.ps1 -WithGraphics -ShowHostWindow` | 普通seed6营地，正常固定采格、卖矿升级、自愿修车、四座车驾驶/乘坐、进阶矿运货与重开；无fixture/注资/传送。ShowHostWindow用于实际画面/性能观察，玩法仍为自动轴输入。 |
+| `Test-DemoVoice.ps1` | 双图形进程真网络、合成音与短暂真实麦克风、远近路由、持续同流续听、静音、DSP样本消费与丢弃比例；不保存录音，不等同真人听感。 |
+| `Test-DemoFourPeers.ps1 -IncludeHostCrash` | 四个独立本机身份与最小fixture，四方竞争、迟加入/重连、原子交易和房主故障恢复。不是四个人或异网。 |
+| `New-FriendCandidate.ps1` | 核对源码/构建指纹，完整依赖与许可证，生成独立ZIP、manifest和SHA256；不发布。 |
+
+T01—T16/T18的权威规则、存储故障和投影测试在Demo EditMode；M0实际引擎物理保留PlayMode。脚本驱动、真实窗口、原生键鼠和真人体验分开记录。T17原生Esc已验证：菜单中本机W不移动，同房peer继续移动、世界时间继续；关闭菜单后本机短步恢复。两设备LAN、异网双向语音、四人中美和一小时真人体验必须独立留证。
+
+性能区分隐藏图形实例、可见图形实例与headless。记录Update帧间隔、可用时的最新CPU/GPU帧计时、进程内存（Unity Mono缺测时用脚本取实际PID）、Unity图形资源分配估计。显存容量不是占用；不杜撰最低配置或稳定60FPS保证。
 
 ## M0 历史基线
 
@@ -90,4 +105,4 @@ Set-Location -LiteralPath 'M:\GoldCamp'
 
 每轮在 STATUS 中记录：验证时间、编辑器完整版本、代码/资源对应状态、各入口执行结果、实际用例统计、构建与日志路径、启动观察、真实输入覆盖、剩余问题。尚未运行写“未运行”，不可填写预期成功结果。
 
-本轮不测试网络、Steam、经济、存档、采矿或正式美术。M1 最小接续仅为两个本地实例争抢同一矿块且仅一个成功，本轮不实现。
+以上灰盒细项为 M0 历史基线。当前轮次必须继续执行本文件开头的 v0.3 总验收，网络、资产、存档、采矿、社交、成长与基础语音均在当前范围；M0或双实例抢矿不能作为本轮终点。

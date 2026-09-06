@@ -1,6 +1,6 @@
 {
   "name": "GoldCamp.Demo",
   "rootNamespace": "GoldCamp.Demo",
-  "references": ["FishNet.Runtime"],
+  "references": ["FishNet.Runtime", "Concentus-Unity.Runtime"],
   "autoReferenced": true
 }

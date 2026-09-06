@@ -19,7 +19,7 @@ namespace GoldCamp.Demo
 
     // Gameplay protocol and lifetime sit above FishNet. The connection, never a
     // client-supplied actor field, selects which persistent account may act.
-    public sealed class CampSession : MonoBehaviour
+    public sealed partial class CampSession : MonoBehaviour
     {
         public DemoConfig Config;
         public CampView View { get; private set; }
@@ -33,6 +33,7 @@ namespace GoldCamp.Demo
         public event Action<CampResult> CommandResult;
         public event Action<CampView> ViewChanged;
         public event Action<string, CampInputFrame> InputReceived;
+        public event Action<string> PlayerDisconnected;
         public ICollection<string> OnlinePlayerIds => _actors.Values;
         private CampIdentity _identity;
         private CampSaveStore _store;
@@ -40,6 +41,9 @@ namespace GoldCamp.Demo
         private readonly HashSet<string> _pendingDepartures = new HashSet<string>();
         private float _nextDepartureRetry;
         private bool _ending;
+        private bool _testHoldingWagerLock;
+        private bool _testCapacityPending;
+        private readonly CampSnapshotAssembler _snapshots = new CampSnapshotAssembler();
         private float _nextSave, _nextView;
         private string _worldsRoot;
         private ushort _port = 7770;
@@ -47,7 +51,8 @@ namespace GoldCamp.Demo
         private void Awake()
         {
             Application.runInBackground = true;
-            Application.targetFrameRate = 60;
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = CampTransport.TargetFrameRate;
             Time.timeScale = 1f;
             string testRoot = Argument("--gc-test-root");
             if (!string.IsNullOrEmpty(testRoot))
@@ -78,12 +83,15 @@ namespace GoldCamp.Demo
                 using (var writer = new StreamWriter(stream)) { writer.Write(JsonUtility.ToJson(_identity)); writer.Flush(); stream.Flush(true); }
             }
             if (ushort.TryParse(Argument("--gc-port"), out var port)) _port = port;
+            PlayerName = string.IsNullOrWhiteSpace(_identity.Name) ? "矿工" : _identity.Name;
+            if (!IsTestSession) PlayerName = PlayerPrefs.GetString("Demo.PlayerName", PlayerName);
             Transport = gameObject.AddComponent<CampTransport>();
             Transport.ServerMessage += ReceiveServer;
             Transport.ClientMessage += ReceiveClient;
             Transport.ClientReady += ClientReady;
             Transport.ClientStopped += ClientStopped;
             Transport.PeerDisconnected += Disconnected;
+            SetupVoiceTransport();
         }
 
         private void Start()
@@ -96,6 +104,8 @@ namespace GoldCamp.Demo
         public void StartHost(bool createNew)
         {
             if (Authority != null || Transport.IsClientConnected || _store != null) return;
+            _testHoldingWagerLock = false;
+            _testCapacityPending = createNew && IsTestSession && HasArgument("--gc-test-capacity");
             try
             {
                 CampState state;
@@ -131,7 +141,10 @@ namespace GoldCamp.Demo
                     (position, radius) => !Physics.CheckSphere(position, radius, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore),
                     id => _actors.Values.Contains(id), id => id == _identity.Id);
                 // Test fixtures for checkpoint A intentionally retain their exact minimal world.
-                if (!(IsTestSession && HasArgument("--gc-test-fixture"))) Authority.InitializeMining();
+                if (!(IsTestSession && HasArgument("--gc-test-fixture")))
+                { Authority.InitializeMining(); Authority.InitializeProgression(); }
+                GetComponent<CampTerrain>()?.Configure(Authority.Rules);
+                Authority.RecoverProgression();
                 Authority.RecoverSocial();
                 Authority.Save();
                 Feedback = string.IsNullOrEmpty(_store.RecoveryNotice) ? "营地已保存。" : _store.RecoveryNotice;
@@ -164,11 +177,14 @@ namespace GoldCamp.Demo
         }
         private void ClientReady()
         {
+            _snapshots.Clear();
             _identity.Name = string.IsNullOrWhiteSpace(PlayerName) ? "矿工" : PlayerName;
+            if (!IsTestSession) { PlayerPrefs.SetString("Demo.PlayerName", _identity.Name); PlayerPrefs.Save(); }
             Send("hello", JsonUtility.ToJson(_identity));
         }
         private void ClientStopped()
         {
+            _snapshots.Clear();
             if (_ending) return;
             View = null;
             Feedback = "与房主的连接已断开。资产以房主最近成功保存为准；离开后可重新加入。";
@@ -178,7 +194,7 @@ namespace GoldCamp.Demo
         public void SendCommand(CampCommand command) => Send("command", JsonUtility.ToJson(command));
         public void SendInput(CampInputFrame input) => Send("input", JsonUtility.ToJson(input));
         private void Send(string type, string payload) => Transport.SendToHost(JsonUtility.ToJson(new CampPacket { Type = type, Payload = payload }));
-        private void Reply(int peer, string type, string payload) => Transport.SendToClient(peer, JsonUtility.ToJson(new CampPacket { Type = type, Payload = payload }));
+        private bool Reply(int peer, string type, string payload) => Transport.SendToClient(peer, JsonUtility.ToJson(new CampPacket { Type = type, Payload = payload }));
 
         private void ReceiveServer(int peer, string text)
         {
@@ -196,6 +212,11 @@ namespace GoldCamp.Demo
                     if (_actors.Count >= 4 || identity == null || _actors.ContainsValue(identity.Id))
                     { Reply(peer, "error", "房间已满或该玩家已在线。"); return; }
                     Authority.Join(identity.Id, identity.Secret, identity.Name);
+                    if (_testCapacityPending)
+                    {
+                        CampTestDriver.FillMineCapacity(Authority, identity.Id);
+                        _testCapacityPending = false;
+                    }
                     _actors.Add(peer, identity.Id);
                     BroadcastViews();
                     Debug.Log("GOLDCAMP_PLAYER_JOIN peer=" + peer + " player=" + identity.Id);
@@ -206,6 +227,17 @@ namespace GoldCamp.Demo
                     var command = JsonUtility.FromJson<CampCommand>(packet.Payload);
                     long before = Authority.State.Revision;
                     CampResult result = Authority.Execute(actor, command);
+                    if (result.Success && command.Action == "wager_confirm" && IsTestSession && Debug.isDebugBuild &&
+                        HasArgument("--gc-test-hold-wager-lock") && Authority.State.Wager?.Phase == WagerPhase.Locked)
+                    {
+                        // Fault-injection boundary: the ordinary transaction has
+                        // already been durably committed. Pause before the next
+                        // settlement tick so the harness can terminate THIS host.
+                        _testHoldingWagerLock = true;
+                        File.WriteAllText(Path.Combine(TestRoot, "fault-lock.json"), JsonUtility.ToJson(new TestWagerLock {
+                            WorldId = Authority.State.WorldId, WagerId = Authority.State.Wager.Id,
+                            Revision = Authority.State.Revision, RequestId = command.RequestId }));
+                    }
                     Reply(peer, "result", JsonUtility.ToJson(result));
                     if (result.Success && command.Action == "sell" && Authority.State.Revision > before)
                     {
@@ -237,11 +269,16 @@ namespace GoldCamp.Demo
         {
             var packet = JsonUtility.FromJson<CampPacket>(text);
             if (packet == null) return;
-            if (packet.Type == "view")
+            if (packet.Type == "view-part")
             {
-                View = JsonUtility.FromJson<CampView>(packet.Payload);
-                if (View.Wager != null && string.IsNullOrEmpty(View.Wager.Id)) View.Wager = null;
-                ViewChanged?.Invoke(View);
+                var part = JsonUtility.FromJson<CampSnapshotPart>(packet.Payload);
+                if (_snapshots.TryAccept(part, Time.realtimeSinceStartupAsDouble, out string json))
+                {
+                    View = JsonUtility.FromJson<CampView>(json);
+                    if (View.Wager != null && string.IsNullOrEmpty(View.Wager.Id)) View.Wager = null;
+                    if (View.Vehicle != null && string.IsNullOrEmpty(View.Vehicle.Id)) View.Vehicle = null;
+                    ViewChanged?.Invoke(View);
+                }
             }
             else if (packet.Type == "result")
             {
@@ -254,12 +291,27 @@ namespace GoldCamp.Demo
         private void BroadcastViews()
         {
             if (Authority == null || _ending) return;
-            foreach (var pair in _actors) Reply(pair.Key, "view", JsonUtility.ToJson(CampProjection.ForPlayer(Authority, pair.Value, _actors.Values)));
+            foreach (var pair in _actors)
+            {
+                try
+                {
+                    var parts = CampSnapshotCodec.Pack(JsonUtility.ToJson(CampProjection.ForPlayer(Authority, pair.Value, _actors.Values)));
+                    foreach (var part in parts)
+                        if (!Reply(pair.Key, "view-part", JsonUtility.ToJson(part)))
+                            throw new IOException("状态消息未能发送");
+                }
+                catch (Exception error) when (error is IOException || error is ArgumentException)
+                {
+                    Feedback = "营地状态同步失败，存档保留：" + error.Message;
+                    Reply(pair.Key, "error", Feedback);
+                }
+            }
         }
         private void Disconnected(int peer)
         {
             if (!_actors.TryGetValue(peer, out var actor)) return;
             _actors.Remove(peer);
+            PlayerDisconnected?.Invoke(actor);
             if (!_ending && Authority != null)
             {
                 _pendingDepartures.Add(actor);
@@ -269,7 +321,7 @@ namespace GoldCamp.Demo
         }
         private void Update()
         {
-            if (Authority == null || _ending) return;
+            if (Authority == null || _ending || _testHoldingWagerLock) return;
             Authority.State.OnlineSeconds += Time.unscaledDeltaTime;
             try { Authority.TickWorld(_actors.Values); }
             catch (Exception error) { Feedback = "营地事件保存失败，将重试：" + error.GetType().Name; }
@@ -311,6 +363,8 @@ namespace GoldCamp.Demo
         {
             yield return new WaitForSecondsRealtime(.35f);
             Transport.Stop(); _actors.Clear(); _pendingDepartures.Clear(); View = null; Authority = null;
+            ClearVoiceSession();
+            _snapshots.Clear();
             _store?.Dispose(); _store = null;
             if (quit) Application.Quit(); else _ending = false;
         }
@@ -325,6 +379,7 @@ namespace GoldCamp.Demo
         private void OnDestroy()
         {
             _ending = true;
+            TeardownVoiceTransport();
             if (Transport != null)
             {
                 Transport.ServerMessage -= ReceiveServer; Transport.ClientMessage -= ReceiveClient;
@@ -335,6 +390,8 @@ namespace GoldCamp.Demo
             _store?.Dispose();
         }
         public static bool HasArgument(string key) => Environment.GetCommandLineArgs().Contains(key);
+        [Serializable] private sealed class TestWagerLock
+        { public string WorldId, WagerId, RequestId; public long Revision; }
         public static string Argument(string key)
         {
             string[] args = Environment.GetCommandLineArgs();

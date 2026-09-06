@@ -17,7 +17,13 @@ namespace GoldCamp.Demo
             public bool WasGrounded;
         }
         private readonly Dictionary<string, Motor> _motors = new Dictionary<string, Motor>();
-        private void Start() => Session.InputReceived += ReceiveInput;
+        private void Start()
+        { Session.InputReceived += ReceiveInput; Session.PlayerDisconnected += Disconnected; }
+        private void Disconnected(string actor)
+        {
+            if (!_motors.TryGetValue(actor, out var motor)) return;
+            motor.Body.gameObject.SetActive(false); Destroy(motor.Body.gameObject); _motors.Remove(actor);
+        }
         private void ReceiveInput(string actor, CampInputFrame input)
         {
             if (!_motors.TryGetValue(actor, out var motor) || input.Sequence <= motor.LastSequence) return;
@@ -51,6 +57,18 @@ namespace GoldCamp.Demo
                     motor = new Motor { Body = body, FallStart = player.Position.y, Input = new CampInputFrame { Yaw = player.Yaw, Pitch = player.Pitch } };
                     _motors.Add(id, motor);
                 }
+                int seat = authority.State.Vehicle?.Seats.IndexOf(id) ?? -1;
+                if (seat >= 0)
+                {
+                    motor.Body.enabled = false;
+                    motor.Body.transform.position = CampMap.SeatPoint(authority.State.Vehicle, seat);
+                    player.Position = motor.Body.transform.position;
+                    player.Yaw = motor.Input.Yaw; player.Pitch = Mathf.Clamp(motor.Input.Pitch, -85, 85);
+                    motor.Vertical = 0; motor.FallStart = player.Position.y; motor.WasGrounded = true;
+                    continue;
+                }
+                if (!motor.Body.enabled)
+                { motor.Body.transform.position = player.Position; motor.Body.enabled = true; motor.Vertical = 0; motor.FallStart = player.Position.y; }
                 // Domain escape/load may move a player; synchronize before consuming axes.
                 if (Vector3.Distance(motor.Body.transform.position, player.Position) > 1f)
                 {
@@ -115,6 +133,7 @@ namespace GoldCamp.Demo
             foreach (var motor in _motors.Values) if (motor.Body != null) Destroy(motor.Body.gameObject);
             _motors.Clear();
         }
-        private void OnDestroy() { if (Session != null) Session.InputReceived -= ReceiveInput; Clear(); }
+        private void OnDestroy()
+        { if (Session != null) { Session.InputReceived -= ReceiveInput; Session.PlayerDisconnected -= Disconnected; } Clear(); }
     }
 }

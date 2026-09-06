@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.adrenak.concentus-unity": {
+      "version": "https://github.com/adrenak/concentus-unity.git?path=/Assets/Concentus-Unity#f1564332c43ddf36f9129c5fca51d73c7b47d1fb",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "f1564332c43ddf36f9129c5fca51d73c7b47d1fb"
+    },
     "com.coplaydev.unity-mcp": {
       "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#30d22075093d1d35dfb0091c1c7550e9ad948577",
       "depth": 0,

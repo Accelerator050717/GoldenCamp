@@ -6,12 +6,19 @@ Exercises checkpoint A through two real GoldCamp player processes and FishNet.
 Creates fresh, marked test roots under .local/TestRuns; never accepts a save path.
 CampTestDriver consumes inbox.jsonl. commands.jsonl is an identical audit copy.
 The host is reopened without --gc-new and both persistent identities reconnect.
+FullMineSnapshot adds a development-only fully dug two-pit fixture, then checks that
+both projections and the reopened camp retain every cell, ladder and original yield.
+Snapshot size estimates are diagnostic data, not measured Unity wire payloads.
+SnapshotReaderContention deliberately blocks one diagnostic view writer and checks
+that real gameplay, peer updates and subsequent snapshot export remain functional.
 This is automated loopback validation, not human input, LAN, Steam, or voice testing.
 #>
 [CmdletBinding()]
 param(
     [ValidateRange(10, 300)] [int]$TimeoutSeconds = 60,
-    [switch]$WithGraphics
+    [switch]$WithGraphics,
+    [switch]$FullMineSnapshot,
+    [switch]$SnapshotReaderContention
 )
 
 Set-StrictMode -Version Latest
@@ -37,7 +44,7 @@ $checks = [Collections.Generic.List[object]]::new()
 $roles = @{}
 $evidence = [ordered]@{
     SchemaVersion = 1
-    Suite = 'A-FishNet-two-process-loopback'
+    Suite = $(if ($FullMineSnapshot) { 'A-FishNet-full-mine-snapshot-two-process-loopback' } else { 'A-FishNet-two-process-loopback' })
     Mode = $(if ($WithGraphics) { 'Automated player processes with graphics' } else { 'Automated -batchmode -nographics player processes' })
     NotValidated = @('human input', 'LAN devices', 'cross-network play', 'Steam', 'voice', 'four humans')
     StartedUtc = [DateTime]::UtcNow.ToString('O')
@@ -186,6 +193,7 @@ function Start-Player([string]$Role, [string]$Phase, [bool]$NewWorld) {
     if ($Role -eq 'host') {
         $arguments.Add('--gc-host')
         if ($NewWorld) { $arguments.Add('--gc-new'); $arguments.Add('--gc-test-fixture') }
+        if ($NewWorld -and $FullMineSnapshot) { $arguments.Add('--gc-test-capacity') }
     } else {
         $arguments.Add('--gc-connect'); $arguments.Add('127.0.0.1')
     }
@@ -251,6 +259,100 @@ function Assert-Projection($Snapshot, [string]$PlayerId, [string]$Label) {
         $Snapshot.Raw -notmatch 'CredentialHash|HiddenValue|host-secret-test'
     Assert-Check $valid "$Label projection privacy" 'Only Self may contain Balance; no host-only fields or fixture secret.'
     Write-AtomicText (Join-Path $runRoot ("view-$Label.json")) $Snapshot.Raw
+    if ($FullMineSnapshot) {
+        Assert-CapacityData $Snapshot.Data $Label
+        Measure-CapacitySnapshot $Snapshot $Label
+    }
+}
+
+function New-CapacityBaseline($Data) {
+    return [ordered]@{
+        CellIds = [string[]]@($Data['Cells'] | ForEach-Object { [string]$_['Id'] } | Sort-Object)
+        LadderIds = [string[]]@($Data['Ladders'] | ForEach-Object { [string]$_['Id'] } | Sort-Object)
+        YieldIds = [string[]]@($Data['Items'] | Where-Object { [string]$_['Id'] -cmatch '^yield:' } |
+            ForEach-Object { [string]$_['Id'] } | Sort-Object)
+    }
+}
+
+function Assert-CapacityData($Data, [string]$Label) {
+    # Inspect only public geometry/ownership here. This helper also checks the stopped
+    # authority state without copying hidden mineral contents into diagnostics.
+    $cells = @($Data['Cells'])
+    $ladders = @($Data['Ladders'])
+    $items = @($Data['Items'])
+    $yields = @($items | Where-Object { [string]$_['Id'] -cmatch '^yield:' })
+    Assert-Check ($cells.Count -eq 224 -and
+        @($cells | Where-Object { $_['Dug'] -ne $true -or [double]$_['Health'] -ne 0 }).Count -eq 0) "$Label retains all 224 dug cells with zero health"
+    Assert-Check (@($cells | Where-Object { $_['PitId'] -ceq 'starter' }).Count -eq 144 -and
+        @($cells | Where-Object { $_['PitId'] -ceq 'advanced' }).Count -eq 80) "$Label retains both complete mine regions"
+
+    $cellIds = [string[]]@($cells | ForEach-Object { [string]$_['Id'] })
+    $cellSet = [Collections.Generic.HashSet[string]]::new($cellIds, [StringComparer]::Ordinal)
+    Assert-Check ($cellSet.Count -eq 224 -and -not $cellSet.Contains('') -and
+        $cellSet.SetEquals([string[]]$capacityBaseline.CellIds)) "$Label retains the original unique cell IDs"
+    $ladderIds = [string[]]@($ladders | ForEach-Object { [string]$_['Id'] })
+    $ladderSet = [Collections.Generic.HashSet[string]]::new($ladderIds, [StringComparer]::Ordinal)
+    $ladderCells = [Collections.Generic.HashSet[string]]::new(
+        [string[]]@($ladders | ForEach-Object { [string]$_['CellId'] }), [StringComparer]::Ordinal)
+    Assert-Check ($ladders.Count -eq 224 -and $ladderSet.Count -eq 224 -and -not $ladderSet.Contains('') -and
+        $ladderCells.SetEquals($cellSet) -and $ladderSet.SetEquals([string[]]$capacityBaseline.LadderIds)) "$Label retains exactly one original ladder per dug cell"
+
+    $cellMap = [Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+    foreach ($cell in $cells) { $cellMap.Add([string]$cell['Id'], $cell) }
+    $supported = $true
+    foreach ($ladder in $ladders) {
+        $cell = $cellMap[[string]$ladder['CellId']]
+        if ($ladder['PitId'] -cne $cell['PitId'] -or $ladder['X'] -ne $cell['X'] -or
+            $ladder['Depth'] -ne $cell['Depth'] -or $ladder['Z'] -ne $cell['Z']) { $supported = $false; break }
+        if ([int]$ladder['Depth'] -gt 0) {
+            $above = '{0}:{1}:{2}:{3}' -f $ladder['PitId'], $ladder['X'], ([int]$ladder['Depth'] - 1), $ladder['Z']
+            if (-not $ladderCells.Contains($above)) { $supported = $false; break }
+        }
+    }
+    Assert-Check $supported "$Label ladder geometry and continuous upper support remain intact"
+
+    $itemIds = [string[]]@($items | ForEach-Object { [string]$_['Id'] })
+    $itemSet = [Collections.Generic.HashSet[string]]::new($itemIds, [StringComparer]::Ordinal)
+    Assert-Check ($itemSet.Count -eq $items.Count -and -not $itemSet.Contains('')) "$Label contains no duplicate item IDs"
+    $yieldIds = [string[]]@($yields | ForEach-Object { [string]$_['Id'] })
+    $yieldSet = [Collections.Generic.HashSet[string]]::new($yieldIds, [StringComparer]::Ordinal)
+    Assert-Check ($yields.Count -ge 224 -and $yieldSet.Count -eq $yields.Count -and
+        $yieldSet.SetEquals([string[]]$capacityBaseline.YieldIds)) "$Label retains every original public yield" "count=$($yields.Count)"
+    Assert-Check (@($yields | Where-Object { $_['Place'] -ne 0 -or [int]$_['Quantity'] -lt 1 -or
+        -not [string]::IsNullOrEmpty([string]$_['OwnerId']) }).Count -eq 0) "$Label original yields remain unowned ground items"
+    $yieldCells = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $validYieldIds = $true
+    foreach ($yieldId in $yieldIds) {
+        if ($yieldId -cmatch '^yield:((?:starter|advanced):[0-9]+:[0-9]+:[0-9]+):[0-9]+$' -and $cellSet.Contains($Matches[1])) {
+            $null = $yieldCells.Add($Matches[1])
+        } else { $validYieldIds = $false; break }
+    }
+    Assert-Check ($validYieldIds -and $yieldCells.SetEquals($cellSet)) "$Label has original yields for every dug cell"
+
+    [long]$contributedCoins = 0
+    [long]$contributedIron = 0
+    foreach ($contribution in @($Data['Contributions'])) {
+        $contributedCoins += [long]$contribution['Coins']
+        $contributedIron += [long]$contribution['Iron']
+    }
+    Assert-Check ($Data['RoadUnlocked'] -eq $true -and $Data['RoadCoinsPaid'] -eq $Data['RoadRequiredCoins'] -and
+        $Data['RoadIronPaid'] -eq $Data['RoadRequiredIron'] -and $contributedCoins -eq $Data['RoadCoinsPaid'] -and
+        $contributedIron -eq $Data['RoadIronPaid']) "$Label retains the completed road and matching public contributions"
+}
+
+function Measure-CapacitySnapshot($Snapshot, [string]$Label) {
+    # The view text was emitted by CampTestDriver. Wrapping that exact text follows
+    # CampPacket's two fields, but PowerShell JSON escaping can differ from JsonUtility.
+    $estimatedPacket = ConvertTo-Json -InputObject ([ordered]@{ Type = 'view'; Payload = $Snapshot.Raw }) -Compress -Depth 4
+    $estimatedBytes = $utf8.GetByteCount($estimatedPacket)
+    $capacitySizes.Add([ordered]@{
+        Label = $Label
+        ViewJsonUtf8Bytes = $utf8.GetByteCount($Snapshot.Raw)
+        PowerShellCampPacketUtf8Bytes = $estimatedBytes
+        HistoricalLimitBytes = 128 * 1024
+        EstimateExceedsHistoricalLimit = $estimatedBytes -gt (128 * 1024)
+        Measurement = 'Client view.json plus a PowerShell JSON CampPacket wrapper; not Unity wire bytes or compressed traffic.'
+    })
 }
 
 function Assert-ResultSame($Actual, $Expected, [string]$Label) {
@@ -293,6 +395,7 @@ function Assert-SavedState($State, [string]$Label) {
         Assert-Check ($receipts.Count -eq 1 -and $receipts[0]['Result']['Success'] -eq $true) "$Label retains one $request receipt"
         if ($request -eq 'a-sell-once') { Assert-ResultSame $receipts[0]['Result'] $saleResult "$Label retains original sale result" }
     }
+    if ($FullMineSnapshot) { Assert-CapacityData $State $Label }
 }
 
 try {
@@ -321,6 +424,46 @@ try {
     Assert-Check ($playerIds.host -match '^[0-9a-f]{32}$' -and $playerIds.client -match '^[0-9a-f]{32}$' -and $playerIds.host -cne $playerIds.client) 'Two separate persistent player identities'
     Assert-Check ($initialViews['client'].Data['WorldId'] -ceq $worldId) 'Both processes joined the same world'
     Assert-Check ($roles.host.CurrentProcess.Id -ne $roles.client.CurrentProcess.Id) 'Host and client are distinct OS processes'
+    if ($SnapshotReaderContention) {
+        $path = Assert-TestPath (Join-Path $roles.host.Root 'view.json')
+        $held = $null
+        try {
+            for ($attempt = 0; $attempt -lt 40 -and $null -eq $held; $attempt++) {
+                try { $held = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read) }
+                catch [IO.IOException] { Start-Sleep -Milliseconds 25 }
+            }
+            Assert-Check ($null -ne $held) 'Snapshot observer holds a real reader that denies writes'
+            $beforeWrite = [IO.File]::GetLastWriteTimeUtc($path)
+            Send-Command 'host' (New-Command 'a-observer-peace' 'pvp' '' 0 '' 0)
+            $changed = (Wait-Result 'host' 'a-observer-peace').Entries[0]
+            Assert-Check ($changed['Success']) 'Gameplay transaction succeeds while diagnostics export is locked'
+            $peerView = Wait-View 'client' { param($view) $view['PvpEnabled'] -eq $false }
+            Assert-Check ($peerView.Data['PvpEnabled'] -eq $false) 'Other client receives the gameplay update while host diagnostics is locked'
+            Start-Sleep -Milliseconds 500
+            Assert-Check ([IO.File]::GetLastWriteTimeUtc($path) -eq $beforeWrite) 'Locked host diagnostics was not rewritten'
+        } finally { if ($null -ne $held) { $held.Dispose() } }
+        $hostView = Wait-View 'host' { param($view) $view['PvpEnabled'] -eq $false }
+        Assert-Check ([IO.File]::GetLastWriteTimeUtc($path) -gt $beforeWrite) 'Latest complete snapshot resumes after the reader releases the file'
+        Send-Command 'host' (New-Command 'a-observer-restore-pvp' 'pvp' '' 0 '' 1)
+        $restored = (Wait-Result 'host' 'a-observer-restore-pvp').Entries[0]
+        Assert-Check ($restored['Success']) 'Host restores original camp rule after diagnostic contention'
+        $null = Wait-View 'host' { param($view) $view['PvpEnabled'] -eq $true }
+        $null = Wait-View 'client' { param($view) $view['PvpEnabled'] -eq $true }
+        $evidence.Scenario['SnapshotReaderContention'] = 'Actual read handle denies diagnostic writes; gameplay and peer projection continue, latest host view recovers after release.'
+    }
+    if ($FullMineSnapshot) {
+        $capacityBaseline = New-CapacityBaseline $initialViews['host'].Data
+        $capacitySizes = [Collections.Generic.List[object]]::new()
+        $evidence.Scenario['FullMineSnapshot'] = [ordered]@{
+            Fixture = 'Development-only --gc-test-capacity on the first new host; normal resource progression is not tested by this fixture.'
+            ExpectedCells = 224; ExpectedLadders = 224
+            OriginalCellIds = $capacityBaseline.CellIds
+            OriginalLadderIds = $capacityBaseline.LadderIds
+            PublicOriginalYieldCount = $capacityBaseline.YieldIds.Count
+            OriginalYieldIds = $capacityBaseline.YieldIds
+            SnapshotSizes = $capacitySizes
+        }
+    }
     $initialBalances = @{}
     foreach ($role in @('host', 'client')) {
         $initialBalances[$role] = [long]$initialViews[$role].Data['Self']['Balance']
@@ -415,6 +558,12 @@ try {
     $evidence.Scenario['InitialBalances'] = $initialBalances
     $evidence.Scenario['FinalBalances'] = $transferredBalances
     $evidence.Scenario['SaleResult'] = $saleResult
+    if ($SnapshotReaderContention) {
+        foreach ($entry in $processes) {
+            $errors = @(Select-String -LiteralPath $entry.LogPath -Pattern 'IOException|NullReferenceException|MissingReferenceException|InvalidOperationException|IndexOutOfRangeException')
+            Assert-Check ($errors.Count -eq 0) "Diagnostic contention has no escaping exceptions ($($entry.Role)/$($entry.Phase))"
+        }
+    }
     $evidence.Success = $true
 } catch {
     $evidence.Error = $_.Exception.Message

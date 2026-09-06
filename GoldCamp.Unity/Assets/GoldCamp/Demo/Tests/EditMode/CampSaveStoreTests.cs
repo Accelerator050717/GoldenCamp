@@ -234,8 +234,6 @@ namespace GoldCamp.Demo.Tests
             const string otherPlayerId = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
             string wagerId = Guid.NewGuid().ToString("N");
             var state = CampAuthority.NewWorld("test-only permanent camp", 13579);
-            state.Revision = revision;
-            state.SavedUtc = "2026-09-05T00:00:00.0000000Z";
             state.OnlineSeconds = 654.25;
             state.PvpEnabled = false;
             state.Players.Add(new CampPlayer
@@ -249,15 +247,20 @@ namespace GoldCamp.Demo.Tests
                 Id = otherPlayerId, CredentialHash = CampAuthority.Hash("test-only other credential"), Name = "测试对手",
                 Balance = 300, Position = new Vector3(2, 2, 3), ColorIndex = 1
             });
+            state = WithUnlockedVehicle(state, playerId);
+            // Setup commits must not change the explicit backup generation under test.
+            state.Revision = revision;
+            state.SavedUtc = "2026-09-05T00:00:00.0000000Z";
             foreach (var place in new[] { ItemPlace.Ground, ItemPlace.Hand, ItemPlace.Pocket, ItemPlace.Mouth,
                          ItemPlace.Cabinet, ItemPlace.Vehicle, ItemPlace.Escrow, ItemPlace.Sold })
             {
                 state.Items.Add(new CampItem
                 {
                     Id = "ore-" + place, Kind = ItemKind.RawStone, Place = place,
-                    OwnerId = place == ItemPlace.Ground ? "" : playerId,
-                    ContainerId = place == ItemPlace.Cabinet ? "cabinet-a" : place == ItemPlace.Vehicle ? "cart-a" : place == ItemPlace.Escrow ? "wager:" + wagerId : "",
-                    Position = new Vector3(4, 5, 6), Velocity = new Vector3(.1f, .2f, .3f), Version = 7,
+                    OwnerId = place == ItemPlace.Ground || place == ItemPlace.Vehicle ? "" : playerId,
+                    ContainerId = place == ItemPlace.Cabinet ? "cabinet-a" : place == ItemPlace.Vehicle ? CampMap.VehicleCargoContainer(0) : place == ItemPlace.Escrow ? "wager:" + wagerId : "",
+                    Position = place == ItemPlace.Vehicle ? CampMap.CargoPoint(state.Vehicle, 0) : new Vector3(4, 5, 6),
+                    Velocity = place == ItemPlace.Vehicle ? Vector3.zero : new Vector3(.1f, .2f, .3f), Version = 7,
                     HiddenValue = 600, CoreKind = "gold-core", RevealStage = 1,
                     InspectedBy = new System.Collections.Generic.List<string> { playerId }
                 });
@@ -283,6 +286,24 @@ namespace GoldCamp.Demo.Tests
                 Result = new CampResult { RequestId = "durable-operation", Success = true, Code = "ok", Message = "已保存", Amount = 55, Revision = revision }
             });
             return state;
+        }
+
+        private static CampState WithUnlockedVehicle(CampState state, string contributorId)
+        {
+            var setup = new CampAuthority(state, new CampRules(), ignored => { });
+            setup.InitializeMining();
+            setup.InitializeProgression();
+            var next = CampCodec.Clone(setup.State);
+            // A completed historical contribution is part of this snapshot; the
+            // seeded player balances are its already-paid account balances.
+            next.RoadCoinsPaid = next.RoadRequiredCoins;
+            next.RoadIronPaid = next.RoadRequiredIron;
+            next.RoadUnlocked = true;
+            next.RoadVersion = 1;
+            next.Contributions.Add(new CampContribution
+                { PlayerId = contributorId, Coins = next.RoadRequiredCoins, Iron = next.RoadRequiredIron });
+            setup.Commit(next);
+            return CampCodec.Clone(setup.State);
         }
 
         private static CampState RevisionOf(CampState source, long revision)

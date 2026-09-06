@@ -20,10 +20,18 @@ namespace GoldCamp.Demo
         public string Payload;
     }
 
+    public struct CampVoiceEnvelope : IBroadcast
+    {
+        public int Stream, Sequence;
+        public string Speaker;
+        public byte[] Data;
+    }
+
     [DisallowMultipleComponent]
     public sealed class CampTransport : MonoBehaviour
     {
         public const int MaximumPayloadBytes = 128 * 1024;
+        public const ushort TargetFrameRate = 60;
         private const int MaximumPeers = 4;
         private static readonly Encoding PayloadEncoding = new UTF8Encoding(false, true);
 
@@ -32,6 +40,8 @@ namespace GoldCamp.Demo
         public event Action<int> PeerDisconnected;
         public event Action ClientReady;
         public event Action ClientStopped;
+        public event Action<int, CampVoiceFrame> ServerVoice;
+        public event Action<CampVoiceFrame> ClientVoice;
 
         private readonly List<int> _peers = new List<int>(MaximumPeers);
         private ReadOnlyCollection<int> _peerView;
@@ -94,6 +104,27 @@ namespace GoldCamp.Demo
                 requireAuthenticated: true, channel: Channel.Reliable);
             return true;
         }
+
+        public bool SendVoiceToHost(CampVoiceFrame frame)
+        {
+            if (!IsClientConnected || !ValidVoice(frame)) return false;
+            _manager.ClientManager.Broadcast(new CampVoiceEnvelope { Stream = frame.Stream,
+                Sequence = frame.Sequence, Speaker = "", Data = frame.Data }, Channel.Unreliable);
+            return true;
+        }
+        public bool SendVoiceToClient(int peer, CampVoiceFrame frame)
+        {
+            if (!IsServerRunning || !ValidVoice(frame) || !_peers.Contains(peer) ||
+                !_manager.ServerManager.Clients.TryGetValue(peer, out NetworkConnection connection) ||
+                !connection.IsActive || !connection.IsAuthenticated) return false;
+            _manager.ServerManager.Broadcast(connection, new CampVoiceEnvelope { Stream = frame.Stream,
+                Sequence = frame.Sequence, Speaker = frame.Speaker, Data = frame.Data },
+                requireAuthenticated: true, channel: Channel.Unreliable);
+            return true;
+        }
+        private static bool ValidVoice(CampVoiceFrame frame) => frame != null && frame.Stream > 0 &&
+            frame.Sequence >= 0 && frame.Data != null && frame.Data.Length > 0 &&
+            frame.Data.Length <= CampVoiceCodec.MaximumPacketBytes;
 
         // The caller owns deliberate shutdown handling; no gameplay callbacks are raised by Stop.
         public void Stop()
@@ -165,8 +196,15 @@ namespace GoldCamp.Demo
                 return false;
             }
 
+            // FishNet reapplies its own rate on connection changes. Configure
+            // both endpoints so host/client startup cannot remove our cap.
+            _manager.ClientManager.SetFrameRate(TargetFrameRate);
+            _manager.ServerManager.SetFrameRate(TargetFrameRate);
+
             _manager.ServerManager.RegisterBroadcast<CampEnvelope>(OnServerEnvelope, requireAuthentication: true);
             _manager.ClientManager.RegisterBroadcast<CampEnvelope>(OnClientEnvelope);
+            _manager.ServerManager.RegisterBroadcast<CampVoiceEnvelope>(OnServerVoiceEnvelope, requireAuthentication: true);
+            _manager.ClientManager.RegisterBroadcast<CampVoiceEnvelope>(OnClientVoiceEnvelope);
             _manager.ServerManager.OnAuthenticationResult += OnServerAuthentication;
             _manager.ServerManager.OnRemoteConnectionState += OnPeerConnectionState;
             _manager.ServerManager.OnServerConnectionState += OnServerConnectionState;
@@ -182,6 +220,8 @@ namespace GoldCamp.Demo
             {
                 _manager.ServerManager.UnregisterBroadcast<CampEnvelope>(OnServerEnvelope);
                 _manager.ClientManager.UnregisterBroadcast<CampEnvelope>(OnClientEnvelope);
+                _manager.ServerManager.UnregisterBroadcast<CampVoiceEnvelope>(OnServerVoiceEnvelope);
+                _manager.ClientManager.UnregisterBroadcast<CampVoiceEnvelope>(OnClientVoiceEnvelope);
                 _manager.ServerManager.OnAuthenticationResult -= OnServerAuthentication;
                 _manager.ServerManager.OnRemoteConnectionState -= OnPeerConnectionState;
                 _manager.ServerManager.OnServerConnectionState -= OnServerConnectionState;
@@ -268,6 +308,23 @@ namespace GoldCamp.Demo
             {
                 return false;
             }
+        }
+
+        private void OnServerVoiceEnvelope(NetworkConnection connection, CampVoiceEnvelope message, Channel channel)
+        {
+            if (channel != Channel.Unreliable || !connection.IsAuthenticated || !connection.IsActive ||
+                !_peers.Contains(connection.ClientId) || message.Data == null ||
+                message.Data.Length == 0 || message.Data.Length > CampVoiceCodec.MaximumPacketBytes) return;
+            ServerVoice?.Invoke(connection.ClientId, new CampVoiceFrame { Stream = message.Stream,
+                Sequence = message.Sequence, Speaker = "", Data = message.Data });
+        }
+        private void OnClientVoiceEnvelope(CampVoiceEnvelope message, Channel channel)
+        {
+            if (channel != Channel.Unreliable || !IsClientConnected || message.Data == null ||
+                message.Data.Length == 0 || message.Data.Length > CampVoiceCodec.MaximumPacketBytes ||
+                message.Speaker == null || message.Speaker.Length != 32) return;
+            ClientVoice?.Invoke(new CampVoiceFrame { Stream = message.Stream, Sequence = message.Sequence,
+                Speaker = message.Speaker, Data = message.Data });
         }
 
         private void OnDisable() => Stop();

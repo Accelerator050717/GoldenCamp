@@ -32,7 +32,7 @@ namespace GoldCamp.Demo
         private void LateUpdate()
         {
             var view=Session.View;var self=view?.Self==null?null:view.Players.Find(p=>p.Id==view.Self.Id);
-            if(_root==null)return; _root.gameObject.SetActive(self!=null&&!Application.isBatchMode);
+            if(_root==null)return; _root.gameObject.SetActive(self!=null&&self.VehicleSeat<0&&!Application.isBatchMode);
             if(self==null)return;
             var hand=view.Items.Find(i=>i.OwnerId==self.Id&&i.Place==ItemPlace.Hand);
             bool active=self.ActionUntil>view.OnlineSeconds,smoke=active&&self.Action=="smoke",drink=active&&self.Action=="drink";

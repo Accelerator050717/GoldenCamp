@@ -1,8 +1,8 @@
 # GoldCamp / 淘金营地
 
-当前阶段：在 M0 上持续实现 v0.3 永久营地多人雏形，活动分支 `feat/demo-persistent-v03`，进度见 [活动任务](docs/tasks/DemoPrototype_v0.3.md)。Demo 尚未交付；下方 M0 入口与 2/2 EditMode、12/12 PlayMode 结果保留为历史基线。真实证据见 [STATUS](docs/STATUS.md)。
+当前阶段：v0.3 永久营地多人玩法已形成局域网候选，活动分支 `feat/demo-persistent-v03`。包含采矿与梯子协作、个人交易与柜子、击晕抢夺/嘴藏/烟酒、原石赌桌、升级修车/短途运矿和基础语音。退出后继续同一世界；不是每局重开。分发与接续状态见 [STATUS](docs/STATUS.md) 和 [活动任务](docs/tasks/DemoPrototype_v0.3.md)。下方 M0 结果保留为历史基线。
 
-当前 A—C 内部检查点已通过，继续 D 成长与车辆。109/109 EditMode、C 社交双进程及重开 213/213、B 采矿路线回归 130/130、A 资产回归 50/50 通过；M0 PlayMode 12/12 为保留基线。卡通矿工、木屋营地、嘴藏烟酒、击晕搜袋、原石加工与托管对赌已在真实包运行。完整成长、语音及外部真人验收仍待完成，尚非最终试玩版。
+当前193/193 EditMode、M0 PlayMode12/12；正常成长与车辆完整路线1335项、大档与诊断竞争200项通过。声音140、四本机身份含故障217、采矿130、社交含赌桌故障253项通过，构建边界见[验收记录](docs/VALIDATION_v0.3.md)。最终包实际原生Esc/工具/短步/跳跃、保存并继续同一营地通过。两设备LAN、异网双向语音、四名真人及中美组合、一小时试玩仍待实测；已观测偶发长帧，不能保证稳定60FPS。
 
 Demo 的实际入口（从根目录执行，关闭本项目 Editor）：
 
@@ -14,7 +14,10 @@ Demo 的实际入口（从根目录执行，关闭本项目 Editor）：
 .\Tools\Test-DemoNetwork.ps1
 .\Tools\Test-DemoMining.ps1
 .\Tools\Test-DemoSocial.ps1
+.\Tools\Test-DemoProgression.ps1 -WithGraphics
 ```
+
+E/F 实际入口：`Tools/Test-DemoVoice.ps1`、`Tools/Test-DemoFourPeers.ps1 -IncludeHostCrash`。四进程只代表本机自动网络检查，声音API与真人对话分别记录。`Tools/New-FriendCandidate.ps1` 核对源码及全部运行文件构建后哈希，在 `Builds/Candidates` 生成独立ZIP、清单和SHA256，不上传或发布；实际归档记录见STATUS。朋友说明见 [FRIEND_PLAYTEST](docs/FRIEND_PLAYTEST.md)。
 
 `DemoGenerate` 只重建 Demo 的生成场景并保留已有规则配置；不读写玩家存档。当前包 `Builds/DemoPrototype/Windows/GoldCamp.exe` 可进入继续/独立新建/地址加入菜单。默认端口 7770。实际玩家数据位于 Windows 的 `%USERPROFILE%\AppData\LocalLow\GoldCamp\GoldCamp`：`Identity/player.json` 是玩家身份，`Camps/<WorldId>` 是各自永久营地及两份备份。备份时先正常退出房主，再复制完整目录；不要分享身份文件。测试器仅使用独立 `.local/TestRuns` 标记目录。
 

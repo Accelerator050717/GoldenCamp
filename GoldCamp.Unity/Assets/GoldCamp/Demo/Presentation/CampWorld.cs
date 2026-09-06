@@ -135,7 +135,7 @@ namespace GoldCamp.Demo
         {
             _seen.Clear();
             foreach (CampCell cell in state.Cells)
-                SyncCell(cell.Id, cell.X, cell.Depth, cell.Z, cell.Dug, cell.Health, cell.Version, rules);
+                SyncCell(cell.Id, cell.PitId, cell.X, cell.Depth, cell.Z, cell.Dug, cell.Health, cell.Version, rules);
             RemoveMissing(_cells);
 
             _seen.Clear();
@@ -149,6 +149,7 @@ namespace GoldCamp.Demo
 
             SyncLadders(state.Ladders, rules);
             _poseView.OnlineSeconds = state.OnlineSeconds;
+            _poseView.Vehicle = state.Vehicle;
             _seen.Clear();
             foreach (CampPlayer player in state.Players)
             {
@@ -157,6 +158,7 @@ namespace GoldCamp.Demo
                 var held = state.Items.Find(i => i.OwnerId == player.Id && i.Place == ItemPlace.Hand);
                 SyncMiner(new PublicMiner { Id=player.Id,Name=player.Name,ColorIndex=player.ColorIndex,Position=player.Position,
                     Yaw=player.Yaw,Pitch=player.Pitch,Action=player.Action,ActionUntil=player.ActionUntil,StunnedUntil=player.StunnedUntil,
+                    VehicleSeat=state.Vehicle?.Seats.IndexOf(player.Id)??-1,ToolLevel=player.ToolLevel,
                     ClimbingLadderId=player.ClimbingLadderId,CheeksFull=state.Items.Exists(i=>i.OwnerId==player.Id&&i.Place==ItemPlace.Mouth) },
                     _poseView,held!=null,held?.Kind??ItemKind.Stone,state.Items.Exists(i=>i.AssistantId==player.Id));
             }
@@ -167,7 +169,7 @@ namespace GoldCamp.Demo
         {
             _seen.Clear();
             foreach (VisibleCell cell in view.Cells)
-                SyncCell(cell.Id, cell.X, cell.Depth, cell.Z, cell.Dug, cell.Health, cell.Version, rules);
+                SyncCell(cell.Id, cell.PitId, cell.X, cell.Depth, cell.Z, cell.Dug, cell.Health, cell.Version, rules);
             RemoveMissing(_cells);
 
             _seen.Clear();
@@ -191,7 +193,7 @@ namespace GoldCamp.Demo
             RemoveMissing(_miners);
         }
 
-        private void SyncCell(string id, int x, int depth, int z, bool dug, float health, int version, CampRules rules)
+        private void SyncCell(string id, string pitId, int x, int depth, int z, bool dug, float health, int version, CampRules rules)
         {
             if (dug)
                 return;
@@ -201,7 +203,7 @@ namespace GoldCamp.Demo
                 GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 cube.name = "Mine cell " + id;
                 cube.transform.SetParent(_generatedRoot, false);
-                cube.transform.position = CampMap.CellCenter(x, depth, z, rules);
+                cube.transform.position = CampMap.CellCenter(pitId, x, depth, z, rules);
                 cube.transform.localScale = Vector3.one * rules.CellSize;
                 SetTarget(cube, "cell", id);
                 visual = new CellVisual { Root = cube, Renderer = cube.GetComponent<Renderer>() };
@@ -211,6 +213,7 @@ namespace GoldCamp.Demo
             if (visual.Version == version && visual.Health == health)
                 return;
             float maximum = Mathf.Max(1f, rules.BaseCellHealth + depth * rules.DepthHealthIncrease);
+            if (pitId == CampMap.AdvancedPitId) maximum *= rules.AdvancedHealthMultiplier;
             float brightness = Mathf.Lerp(.42f, 1f, Mathf.Clamp01(health / maximum));
             Color color = MaterialColor(visual.Renderer.sharedMaterial, new Color(.37f, .39f, .4f));
             color = new Color(color.r * brightness, color.g * brightness, color.b * brightness, color.a);
@@ -226,7 +229,7 @@ namespace GoldCamp.Demo
             Vector3 position, Vector3 velocity, int version, bool host)
         {
             // Containers and escrow have their own future presentation; never leave a duplicate ore in space.
-            if (place != ItemPlace.Ground && place != ItemPlace.Hand)
+            if (place != ItemPlace.Ground && place != ItemPlace.Hand && place != ItemPlace.Vehicle)
                 return;
             string container = host ? Session.Authority.State.Items.Find(i=>i.Id==id)?.ContainerId : Session.View.Items.Find(i=>i.Id==id)?.ContainerId;
             if (place == ItemPlace.Ground && IsBag(container)) return;
@@ -246,6 +249,11 @@ namespace GoldCamp.Demo
             Quaternion rotation = Quaternion.identity;
             if (place == ItemPlace.Hand)
                 GetHoldPose(ownerId, position, host, out position, out rotation);
+            if (place == ItemPlace.Vehicle)
+            {
+                var car = host ? Session.Authority.State.Vehicle : Session.View.Vehicle;
+                if (car != null) rotation = Quaternion.Euler(0, car.Yaw, 0);
+            }
             visual.HeldTrigger.enabled = place == ItemPlace.Hand;
             // Ignore only the local holder's interaction trigger, never the ground body's layer.
             visual.HeldTrigger.gameObject.layer = ownerId == Session.View?.Self?.Id ? 2 : 0;
@@ -271,7 +279,7 @@ namespace GoldCamp.Demo
                         visual.Body.WakeUp();
                     }
                 }
-                if (place == ItemPlace.Hand)
+                if (place == ItemPlace.Hand || place == ItemPlace.Vehicle)
                 {
                     visual.Body.position = position;
                     visual.Body.rotation = rotation;
@@ -363,7 +371,7 @@ namespace GoldCamp.Demo
         }
 
         private static bool IsBag(string container) => !string.IsNullOrEmpty(container) &&
-            (container.StartsWith("offline-",StringComparison.Ordinal)||container.StartsWith("escape-",StringComparison.Ordinal)||container.StartsWith("fall-",StringComparison.Ordinal));
+            (container.StartsWith("offline-",StringComparison.Ordinal)||container.StartsWith("escape-",StringComparison.Ordinal)||container.StartsWith("fall-",StringComparison.Ordinal)||container.StartsWith("recovery-",StringComparison.Ordinal));
 
         private void SyncBags(IEnumerable<(string ContainerId,Vector3 Position)> items,bool host)
         {
@@ -458,8 +466,11 @@ namespace GoldCamp.Demo
                 visual = new MinerVisual { Root = go, Model = model }; _miners.Add(miner.Id, visual);
             }
             Transform root = visual.Root.transform;
-            root.position = Vector3.Lerp(root.position, miner.Position, created ? 1f : FollowBlend());
-            root.rotation = Quaternion.Slerp(root.rotation, Quaternion.Euler(0,miner.Yaw,0), created ? 1f : FollowBlend());
+            bool seated = miner.VehicleSeat >= 0 && view.Vehicle != null;
+            var vehicleMotion = Session.GetComponent<CampVehicleMotion>();
+            root.position = seated ? vehicleMotion.SeatPosition(miner.VehicleSeat, view.Vehicle) :
+                Vector3.Lerp(root.position, miner.Position, created ? 1f : FollowBlend());
+            root.rotation = Quaternion.Slerp(root.rotation, Quaternion.Euler(0,seated?vehicleMotion.VisualYaw(view.Vehicle):miner.Yaw,0), created ? 1f : FollowBlend());
             visual.Model.Pose(miner, view, hasHand, handKind, assisting);
         }
         private GameObject NewRoot(string name, string kind, string id)
@@ -598,7 +609,7 @@ namespace GoldCamp.Demo
         }
 
         private static bool IsTargetCenter(CampTarget target, Vector3 end) => target != null &&
-            (target.Kind == "item" || target.Kind == "cell" || target.Kind == "bag") && (target.transform.position - end).sqrMagnitude <= .000001f;
+            (target.Kind == "item" || target.Kind == "cell" || target.Kind == "bag" || target.Kind == "vehicle") && (target.transform.position - end).sqrMagnitude <= .000001f;
 
         private static bool IgnoredForSight(Collider collider) => collider == null || collider.isTrigger || collider is CharacterController;
 

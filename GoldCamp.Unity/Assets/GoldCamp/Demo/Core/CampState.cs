@@ -25,6 +25,7 @@ namespace GoldCamp.Demo
         public int RawUnopenedPrice = 35;
         public int RepairPrice = 12;
         public int UpgradePrice = 180;
+        public int DetectorUpgradePrice = 90, MaxToolLevel = 2, MaxDetectorLevel = 1;
         public int RoadPrice = 400;
         public int RoadIron = 8;
         public int WindowPrice = 3;
@@ -62,6 +63,10 @@ namespace GoldCamp.Demo
         public float RobSeconds = 1f;
         public float SmokeSeconds = 6f;
         public float DrinkSeconds = 2.5f;
+        public int AdvancedWidth = 4, AdvancedLength = 4, AdvancedDepth = 5, AdvancedValueDepthBonus = 4;
+        public float AdvancedHealthMultiplier = 1.6f;
+        public int VehicleCargoSlots = 4;
+        public float VehicleSpeed = 8, VehicleReverseSpeed = 3, VehicleAcceleration = 5, VehicleTurnSpeed = 65, VehicleReach = 4;
     }
 
     [Serializable]
@@ -160,6 +165,12 @@ namespace GoldCamp.Demo
         public List<CampReceipt> Receipts = new List<CampReceipt>();
         public List<CampCell> Cells = new List<CampCell>();
         public List<CampLadder> Ladders = new List<CampLadder>();
+        public bool ProgressionInitialized, RoadUnlocked;
+        public long RoadRequiredCoins, RoadCoinsPaid;
+        public int RoadRequiredIron, RoadIronPaid, RoadVersion, AdvancedWidth, AdvancedLength, AdvancedDepth;
+        public List<CampContribution> Contributions = new List<CampContribution>();
+        public List<CampVehicle> Vehicles = new List<CampVehicle>();
+        public CampVehicle Vehicle => Vehicles != null && Vehicles.Count > 0 ? Vehicles[0] : null;
         // Unity serializes a null inline class as an empty object. A 0/1 list preserves absence.
         public List<CampWager> Wagers = new List<CampWager>();
         public CampWager Wager
@@ -167,6 +178,24 @@ namespace GoldCamp.Demo
             get => Wagers != null && Wagers.Count > 0 ? Wagers[0] : null;
             set { Wagers = new List<CampWager>(); if (value != null) Wagers.Add(value); }
         }
+    }
+
+    [Serializable]
+    public sealed class CampContribution
+    {
+        public string PlayerId;
+        public long Coins;
+        public int Iron;
+    }
+
+    [Serializable]
+    public sealed class CampVehicle
+    {
+        public string Id;
+        public Vector3 Position;
+        public float Yaw, Speed, Steering;
+        public int Version, CargoSlots;
+        public List<string> Seats = new List<string> { "", "", "", "" };
     }
 
     [Serializable]
@@ -214,6 +243,8 @@ namespace GoldCamp.Demo
             if (state != null)
             {
                 state.Wagers ??= new List<CampWager>();
+                state.Vehicles ??= new List<CampVehicle>();
+                state.Contributions ??= new List<CampContribution>();
                 if (state.Wagers.Count > 1) throw new InvalidOperationException("存档包含多个活动赌桌，已保留原档。");
             }
             // Additive v0.3 checkpoint migration: A worlds predate finite mines.

@@ -32,12 +32,15 @@ namespace GoldCamp.Demo.Editor
             Stall(root,CampMap.RepairPoint,"维修 · 升级",false);
             Cutter(root,CampMap.CutterPoint);
             Table(root,CampMap.WagerPoint);
+            Stall(root,CampMap.VehicleMaintenancePoint,"公共修车 · 分次贡献",false);
             Campfire(root,new Vector3(0,0,-10));
             // Broad, flat paths are visual surfaces; existing terrain remains the collision authority.
             Part(root,"Camp clearing",PrimitiveType.Cylinder,new Vector3(0,.012f,-4),new Vector3(17,.008f,25),_dirt);
             Path(root,new Vector3(-3,0,3),new Vector3(-5,0,19),3f);
             Path(root,new Vector3(6,0,6),new Vector3(21,0,34),4f);
             Path(root,new Vector3(21,0,34),new Vector3(23,0,47),4f);
+            Path(root,CampMap.VehicleHome,new Vector3(22,0,40),4f);
+            Sign(root,new Vector3(18,0,43),"进阶矿坑\n基础镐走左列 · 硬层需2级",Quaternion.identity);
             Sign(root,new Vector3(-6.7f,0,18),"初级矿坑\n有限矿体 · L 放梯",Quaternion.identity);
             Sign(root,new Vector3(9,0,12),"旧车 / 进阶道路\n修复后开放",Quaternion.Euler(0,-25,0));
             var entrance = new GameObject("Mine timber entrance").transform; entrance.SetParent(root,false); entrance.position=new Vector3(0,0,19.4f);
@@ -52,6 +55,7 @@ namespace GoldCamp.Demo.Editor
                 float z=-22+(float)random.NextDouble()*80;
                 // Leave the short vehicle road and river collection point open.
                 if(x>0 && z>14 && z<52) x=34;
+                if(x>15 && x<29 && z>-12 && z<53) x=34;
                 Pine(root,new Vector3(x,0,z),3.5f+(float)random.NextDouble()*4);
                 if(i%3==0) Rock(root,new Vector3(x+2,0,z+1),new Vector3(2.3f,1.8f,2.1f));
             }

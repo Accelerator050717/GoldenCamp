@@ -522,6 +522,15 @@ function Exit-Ladder {
     try {
         $result = (Wait-Result 'host' $command.RequestId).Entries[0]
         Assert-Check ($result['Success']) 'Unclip at top succeeded'
+        # Keep W held while stepping over the lip. Move-To's proportional slow
+        # axis is useful on flat ground but would release most forward input
+        # before a heavy carrier has reached this ledge.
+        $null = Wait-Until 'heavy carrier steps fully onto the intact north ledge' {
+            $p = (Get-Miner (Get-LiveView 'host').Data)['Position']
+            if ([double]$p['y'] -lt -.75) { throw 'Heavy carrier fell while holding full forward input onto the north ledge.' }
+            return [double]$p['z'] -ge 22.45 -and [double]$p['y'] -gt -.1
+        }
+        Set-Neutral 'host' 'ledge-reached'
         Move-To 'host' -5 22.8 'north intact row' 0 .75
     } finally { Set-Neutral 'host' 'exit-stop' }
     Assert-Check ([string]::IsNullOrEmpty((Get-Miner (Get-LiveView 'host').Data)['ClimbingLadderId'])) 'Exited ladder with no attachment'
@@ -608,7 +617,10 @@ try {
     $initial = @{}
     foreach ($role in @('host', 'client')) {
         $initial[$role] = Wait-View $role { param($view)
-            @($view['Players'] | Where-Object { $_['Online'] }).Count -eq 2 -and @($view['Cells']).Count -eq 144 }
+            @($view['Players'] | Where-Object { $_['Online'] }).Count -eq 2 -and
+            @($view['Cells'] | Where-Object { $_['PitId'] -ceq 'starter' }).Count -eq 144 -and
+            @($view['Cells'] | Where-Object { $_['PitId'] -ceq 'advanced' }).Count -eq 80 -and
+            @($view['Cells']).Count -eq 224 }
     }
     $playerIds = @{ host = $initial.host.Data['Self']['Id']; client = $initial.client.Data['Self']['Id'] }
     $worldId = [string]$initial.host.Data['WorldId']

@@ -34,6 +34,8 @@ namespace GoldCamp.Demo
                 Rules.PitLength = state.MineLength;
                 Rules.PitDepth = state.MineDepth;
             }
+            if (state.ProgressionInitialized)
+            { Rules.AdvancedWidth = state.AdvancedWidth; Rules.AdvancedLength = state.AdvancedLength; Rules.AdvancedDepth = state.AdvancedDepth; }
             _persist = persist ?? throw new ArgumentNullException(nameof(persist));
             _lineOfSight = lineOfSight ?? ((a, b) => true);
             _freePlacement = freePlacement ?? ((position, radius) => true);
@@ -107,13 +109,16 @@ namespace GoldCamp.Demo
         private CampResult Apply(CampState state, CampPlayer actor, CampCommand command)
         {
             if (command.Action != "cancel_escape" && command.Action != "unclip" && command.Action != "leave_assist"
-                && command.Action != "cancel_action" && command.Action != "wager_cancel")
+                && command.Action != "cancel_action" && command.Action != "wager_cancel" && command.Action != "vehicle_exit")
             {
                 Require(actor.StunnedUntil <= state.OnlineSeconds, "stunned", "暂时无法行动。");
                 Require(actor.EscapeAt <= 0, "escaping", "正在返回营地；可先取消。");
                 Require(actor.ActionUntil <= state.OnlineSeconds || (actor.Action != "rob" && actor.Action != "smoke" && actor.Action != "drink"),
                     "action_busy", "请先取消当前表演或搜袋动作。");
             }
+            if (state.Vehicle != null && state.Vehicle.Seats.Contains(actor.Id))
+                Require(command.Action == "vehicle_exit" || command.Action == "cancel_action" || command.Action == "pvp",
+                    "seated", "请先安全下车再操作物品或工具。");
             switch (command.Action)
             {
                 case "pickup":
@@ -173,6 +178,7 @@ namespace GoldCamp.Demo
             var actor = next.Players.Find(p => p.Id == playerId);
             if (actor == null) return;
             DisconnectSocial(next, playerId);
+            DisconnectVehicle(next, playerId);
             // A disconnected miner cannot reserve a ladder or finish a timed escape offline.
             actor.ClimbingLadderId = "";
             actor.EscapeAt = 0;
@@ -258,7 +264,9 @@ namespace GoldCamp.Demo
             {
                 Require(state.MineCellSize > 0 && float.IsFinite(state.MineCellSize) && state.MineWidth > 0 && state.MineLength > 0 && state.MineDepth > 0, "save", "矿坑几何参数损坏。");
                 Require(state.Cells.All(c => c != null && !string.IsNullOrEmpty(c.Id) && c.X >= 0 && c.Z >= 0 && c.Depth >= 0 &&
-                    c.X < state.MineWidth && c.Z < state.MineLength && c.Depth < state.MineDepth && c.Health >= 0 && float.IsFinite(c.Health) && c.HiddenValue >= 0 && c.Version >= 0 && c.YieldCount > 0), "save", "矿格损坏。");
+                    (c.PitId == CampMap.StarterPit ? c.X < state.MineWidth && c.Z < state.MineLength && c.Depth < state.MineDepth :
+                     c.PitId == CampMap.AdvancedPitId && state.ProgressionInitialized && c.X < state.AdvancedWidth && c.Z < state.AdvancedLength && c.Depth < state.AdvancedDepth) &&
+                    c.Health >= 0 && float.IsFinite(c.Health) && c.HiddenValue >= 0 && c.Version >= 0 && c.YieldCount > 0), "save", "矿格损坏。");
                 Require(state.Cells.Select(c => c.Id).Distinct().Count() == state.Cells.Count, "save", "矿格编号重复。");
                 Require(state.Ladders.All(l => l != null && !string.IsNullOrEmpty(l.Id) && state.Cells.Any(c => c.Id == l.CellId && c.Dug)), "save", "梯子锚点无效。");
                 Require(state.Ladders.Select(l => l.Id).Distinct().Count() == state.Ladders.Count && state.Ladders.Select(l => l.CellId).Distinct().Count() == state.Ladders.Count, "save", "梯子重复。");
@@ -269,6 +277,7 @@ namespace GoldCamp.Demo
                 Require(state.Items.Count(i => i.OwnerId == player.Id && i.Place == ItemPlace.Mouth) <= 1, "save", "嘴槽归属重复。");
             }
             ValidateSocial(state);
+            ValidateProgression(state);
         }
     }
 }

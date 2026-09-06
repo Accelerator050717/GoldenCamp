@@ -10,6 +10,7 @@ namespace GoldCamp.Demo
     {
         public string Id, Name;
         public int ColorIndex, ToolLevel;
+        public int VehicleSeat = -1;
         public Vector3 Position;
         public float Yaw;
         public float Pitch;
@@ -74,6 +75,11 @@ namespace GoldCamp.Demo
         public CampRules Rules;
         public bool PvpEnabled;
         public VisibleWager Wager;
+        public CampVehicle Vehicle;
+        public bool RoadUnlocked;
+        public long RoadRequiredCoins, RoadCoinsPaid;
+        public int RoadRequiredIron, RoadIronPaid, RoadVersion;
+        public List<CampContribution> Contributions = new List<CampContribution>();
     }
     public static class CampProjection
     {
@@ -82,12 +88,17 @@ namespace GoldCamp.Demo
             CampState state = authority.State;
             var view = new CampView { WorldId = state.WorldId, Name = state.Name, Revision = state.Revision,
                 SavedUtc = state.SavedUtc, OnlineSeconds = state.OnlineSeconds, Rules = authority.Rules, PvpEnabled = state.PvpEnabled };
+            view.RoadUnlocked = state.RoadUnlocked; view.RoadRequiredCoins = state.RoadRequiredCoins; view.RoadCoinsPaid = state.RoadCoinsPaid;
+            view.RoadRequiredIron = state.RoadRequiredIron; view.RoadIronPaid = state.RoadIronPaid; view.RoadVersion = state.RoadVersion;
+            view.Contributions.AddRange(state.Contributions.Select(c => new CampContribution { PlayerId=c.PlayerId,Coins=c.Coins,Iron=c.Iron }));
+            if (state.Vehicle != null) view.Vehicle = JsonUtility.FromJson<CampVehicle>(JsonUtility.ToJson(state.Vehicle));
             foreach (var p in state.Players)
             {
                 view.Players.Add(new PublicMiner { Id = p.Id, Name = p.Name, Position = p.Position,
                     Yaw = p.Yaw, Pitch = p.Pitch, ColorIndex = p.ColorIndex, ToolLevel = p.ToolLevel,
                     Online = onlineIds == null || onlineIds.Contains(p.Id), Action = p.Action, ActionUntil = p.ActionUntil,
                     StunnedUntil = p.StunnedUntil, ClimbingLadderId = p.ClimbingLadderId,
+                    VehicleSeat = state.Vehicle?.Seats.IndexOf(p.Id) ?? -1,
                     CheeksFull = state.Items.Exists(i => i.OwnerId == p.Id && i.Place == ItemPlace.Mouth) });
                 if (p.Id == playerId) view.Self = new OwnAccount { Id = p.Id, Balance = p.Balance,
                     ToolLevel = p.ToolLevel, DetectorLevel = p.DetectorLevel, Durability = p.Durability,
