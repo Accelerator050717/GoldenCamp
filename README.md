@@ -2,7 +2,7 @@
 
 当前阶段：在 M0 上持续实现 v0.3 永久营地多人雏形，活动分支 `feat/demo-persistent-v03`，进度见 [活动任务](docs/tasks/DemoPrototype_v0.3.md)。Demo 尚未交付；下方 M0 入口与 2/2 EditMode、12/12 PlayMode 结果保留为历史基线。真实证据见 [STATUS](docs/STATUS.md)。
 
-当前 A 检查点已通过：47/47 EditMode、12/12 M0 PlayMode、50/50 真实双进程资产/保存重开检查。继续 B，不把当前资产开发界面当成完整试玩版。
+当前 A、B 检查点已通过，真实双进程采矿输入路线 130/130 通过。最新 74/74 EditMode、12/12 M0 PlayMode、Windows 构建通过。当前为 B 灰盒，社交、美术、成长与语音继续开发，尚非完整试玩版。
 
 Demo 的实际入口（从根目录执行，关闭本项目 Editor）：
 
@@ -12,6 +12,7 @@ Demo 的实际入口（从根目录执行，关闭本项目 Editor）：
 .\Tools\Invoke-Unity.ps1 -Action PlayModeTests -WithGraphics
 .\Tools\Invoke-Unity.ps1 -Action DemoBuild -WithGraphics
 .\Tools\Test-DemoNetwork.ps1
+.\Tools\Test-DemoMining.ps1
 ```
 
 `DemoGenerate` 只重建 Demo 的生成场景并保留已有规则配置；不读写玩家存档。当前包 `Builds/DemoPrototype/Windows/GoldCamp.exe` 可进入继续/独立新建/地址加入菜单。默认端口 7770。实际玩家数据位于 Windows 的 `%USERPROFILE%\AppData\LocalLow\GoldCamp\GoldCamp`：`Identity/player.json` 是玩家身份，`Camps/<WorldId>` 是各自永久营地及两份备份。备份时先正常退出房主，再复制完整目录；不要分享身份文件。测试器仅使用独立 `.local/TestRuns` 标记目录。
@@ -30,9 +31,9 @@ Demo 的实际入口（从根目录执行，关闭本项目 Editor）：
 & 'C:\Program Files\Unity\Hub\Editor\6000.3.23f1\Editor\Unity.exe' -projectPath 'M:\GoldCamp\GoldCamp.Unity'
 ```
 
-打开已生成的 `Assets/GoldCamp/Scenes/M0_Graybox.unity`，点击 Play。代码中的按键为 WASD 移动、鼠标观察、Space 跳跃、E 拾取/放下、Q 抛出、R 重置、Esc 暂停并释放鼠标；暂停界面可恢复或退出。真实键鼠验收步骤见 [TEST_PLAN](docs/TEST_PLAN.md)。
+打开已生成的 `Assets/GoldCamp/Demo/Scenes/Demo_Camp.unity`，点击 Play；已有营地默认继续，也可独立新建或输入房主地址加入。WASD 移动、鼠标观察、Space 跳跃、E 交互/拾放/上下梯、Q 抛出、1/2 矿镐/探测器、左键使用工具、L 放梯、F 收入口袋、Tab 背包、Esc 本地菜单。菜单不暂停房间；返回营地会把随身货留在原地。当前 B 以自动化规则与网络路线测试为主，完整真人试玩待测。
 
-## 生成、测试与构建
+## M0 历史基线入口
 
 使用 PowerShell 7；运行前关闭本项目的交互编辑器，按顺序等待每条命令完成。脚本会拒绝重复占用项目，不操作其他项目编辑器。
 

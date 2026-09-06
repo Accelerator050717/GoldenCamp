@@ -12,6 +12,8 @@ namespace GoldCamp.Demo
         private string _root;
         private float _nextPoll;
         private int _consumed;
+        private int _sequence;
+        private float _nextInput;
         public void Initialize(CampSession session)
         {
             if (!Debug.isDebugBuild || !session.IsTestSession) { Destroy(this); return; }
@@ -24,6 +26,25 @@ namespace GoldCamp.Demo
         private void Result(CampResult result) => File.AppendAllText(Path.Combine(_root, "results.jsonl"), JsonUtility.ToJson(result) + "\n");
         private void Update()
         {
+            if (_session != null && Time.unscaledTime >= _nextInput)
+            {
+                _nextInput = Time.unscaledTime + .05f;
+                string inputPath = Path.Combine(_root, "input.json");
+                if (File.Exists(inputPath))
+                {
+                    try
+                    {
+                        // The harness atomically replaces input frames while this client reads.
+                        using var stream = new FileStream(inputPath, FileMode.Open, FileAccess.Read,
+                            FileShare.ReadWrite | FileShare.Delete);
+                        using var reader = new StreamReader(stream);
+                        var input = JsonUtility.FromJson<CampInputFrame>(reader.ReadToEnd());
+                        if (input != null) { input.Sequence = ++_sequence; _session.SendInput(input); }
+                    }
+                    catch (IOException) { }
+                    catch (ArgumentException) { }
+                }
+            }
             if (_session == null || Time.unscaledTime < _nextPoll) return;
             _nextPoll = Time.unscaledTime + .1f;
             string inbox = Path.Combine(_root, "inbox.jsonl");

@@ -137,6 +137,11 @@ try {
     }
     $exitCode = $unityProcess.ExitCode
     if ($exitCode -ne 0) { throw "Unity $Action exited with code $exitCode. See $logPath" }
+    if (-not $isTest) {
+        # Unity may return zero after an exception raised while adding a component.
+        $unexpectedErrors = @(Select-String -LiteralPath $logPath -Pattern '^(UnityException|NullReferenceException|MissingReferenceException|InvalidOperationException|ArgumentException|TypeLoadException):|\berror CS\d{4}:')
+        if ($unexpectedErrors.Count -gt 0) { throw "Unity $Action logged $($unexpectedErrors.Count) unexpected exceptions/compiler errors despite exit 0. See $logPath" }
+    }
 
     $testSummary = $null
     if ($isTest) {

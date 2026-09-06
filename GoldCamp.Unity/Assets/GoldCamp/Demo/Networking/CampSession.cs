@@ -10,6 +10,12 @@ namespace GoldCamp.Demo
 {
     [Serializable] public sealed class CampPacket { public string Type; public string Payload; }
     [Serializable] public sealed class CampIdentity { public string Id; public string Secret; public string Name; }
+    [Serializable] public sealed class CampInputFrame
+    {
+        public int Sequence;
+        public float X, Z, Yaw, Pitch;
+        public bool Jump;
+    }
 
     // Gameplay protocol and lifetime sit above FishNet. The connection, never a
     // client-supplied actor field, selects which persistent account may act.
@@ -26,6 +32,8 @@ namespace GoldCamp.Demo
         public string PlayerName = "矿工";
         public event Action<CampResult> CommandResult;
         public event Action<CampView> ViewChanged;
+        public event Action<string, CampInputFrame> InputReceived;
+        public ICollection<string> OnlinePlayerIds => _actors.Values;
         private CampIdentity _identity;
         private CampSaveStore _store;
         private readonly Dictionary<int, string> _actors = new Dictionary<int, string>();
@@ -93,7 +101,9 @@ namespace GoldCamp.Demo
                 CampState state;
                 if (createNew)
                 {
-                    state = CampAuthority.NewWorld("淘金营地 " + DateTime.Now.ToString("MM-dd HH:mm"), Environment.TickCount);
+                    int seed = Environment.TickCount;
+                    if (IsTestSession && int.TryParse(Argument("--gc-seed"), out int testSeed)) seed = testSeed;
+                    state = CampAuthority.NewWorld("淘金营地 " + DateTime.Now.ToString("MM-dd HH:mm"), seed);
                     SaveDirectory = Path.Combine(_worldsRoot, state.WorldId);
                     _store = new CampSaveStore(SaveDirectory);
                     if (_store.Exists) throw new IOException("新营地目录已经存在，拒绝覆盖。");
@@ -107,7 +117,10 @@ namespace GoldCamp.Demo
                     _store = new CampSaveStore(SaveDirectory);
                     state = _store.Load();
                 }
-                Authority = new CampAuthority(state, Config != null ? Config.Rules : new CampRules(), s => _store.Save(s));
+                Authority = new CampAuthority(state, Config != null ? Config.Rules : new CampRules(), s => _store.Save(s), CampWorld.HasSight,
+                    (position, radius) => !Physics.CheckSphere(position, radius, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore));
+                // Test fixtures for checkpoint A intentionally retain their exact minimal world.
+                if (!(IsTestSession && HasArgument("--gc-test-fixture"))) Authority.InitializeMining();
                 Authority.Save();
                 Feedback = string.IsNullOrEmpty(_store.RecoveryNotice) ? "营地已保存。" : _store.RecoveryNotice;
                 _ending = false;
@@ -151,6 +164,7 @@ namespace GoldCamp.Demo
             Transport.Stop();
         }
         public void SendCommand(CampCommand command) => Send("command", JsonUtility.ToJson(command));
+        public void SendInput(CampInputFrame input) => Send("input", JsonUtility.ToJson(input));
         private void Send(string type, string payload) => Transport.SendToHost(JsonUtility.ToJson(new CampPacket { Type = type, Payload = payload }));
         private void Reply(int peer, string type, string payload) => Transport.SendToClient(peer, JsonUtility.ToJson(new CampPacket { Type = type, Payload = payload }));
 
@@ -176,10 +190,17 @@ namespace GoldCamp.Demo
                 }
                 else if (packet.Type == "command" && _actors.TryGetValue(peer, out var actor))
                 {
+                    GetComponent<CampWorld>()?.CapturePhysics();
                     var command = JsonUtility.FromJson<CampCommand>(packet.Payload);
                     CampResult result = Authority.Execute(actor, command);
                     Reply(peer, "result", JsonUtility.ToJson(result));
                     BroadcastViews();
+                }
+                else if (packet.Type == "input" && _actors.TryGetValue(peer, out var movingActor))
+                {
+                    var input = JsonUtility.FromJson<CampInputFrame>(packet.Payload);
+                    if (input != null && float.IsFinite(input.X) && float.IsFinite(input.Z) && float.IsFinite(input.Yaw) && float.IsFinite(input.Pitch))
+                        InputReceived?.Invoke(movingActor, input);
                 }
             }
             catch (Exception error)
@@ -209,7 +230,7 @@ namespace GoldCamp.Demo
         private void BroadcastViews()
         {
             if (Authority == null || _ending) return;
-            foreach (var pair in _actors) Reply(pair.Key, "view", JsonUtility.ToJson(CampProjection.ForPlayer(Authority, pair.Value)));
+            foreach (var pair in _actors) Reply(pair.Key, "view", JsonUtility.ToJson(CampProjection.ForPlayer(Authority, pair.Value, _actors.Values)));
         }
         private void Disconnected(int peer)
         {
@@ -226,6 +247,8 @@ namespace GoldCamp.Demo
         {
             if (Authority == null || _ending) return;
             Authority.State.OnlineSeconds += Time.unscaledDeltaTime;
+            try { Authority.TickWorld(_actors.Values); }
+            catch (Exception error) { Feedback = "营地事件保存失败，将重试：" + error.GetType().Name; }
             if (_pendingDepartures.Count > 0 && Time.unscaledTime >= _nextDepartureRetry)
             {
                 _nextDepartureRetry = Time.unscaledTime + 3f;
@@ -235,7 +258,7 @@ namespace GoldCamp.Demo
             if (Time.unscaledTime >= _nextSave)
             {
                 _nextSave = Time.unscaledTime + Authority.Rules.AutoSaveSeconds;
-                try { FlushDepartures(); Authority.Save(); }
+                try { FlushDepartures(); GetComponent<CampWorld>()?.CapturePhysics(); Authority.Save(); }
                 catch (Exception error) { Feedback = "自动保存失败：" + error.Message; Debug.LogError(Feedback); }
             }
             if (Time.unscaledTime >= _nextView) { _nextView = Time.unscaledTime + .2f; BroadcastViews(); }
@@ -245,7 +268,7 @@ namespace GoldCamp.Demo
             if (_ending) return;
             if (Authority != null)
             {
-                try { FlushDepartures(); Authority.Save(); }
+                try { FlushDepartures(); GetComponent<CampWorld>()?.CapturePhysics(); Authority.Save(); }
                 catch (Exception error) { Feedback = "保存失败，未结束营地：" + error.Message; return; }
                 foreach (int peer in _actors.Keys) Reply(peer, "ended", "房主结束了会话，营地进度已保存。");
             }
@@ -272,7 +295,7 @@ namespace GoldCamp.Demo
             if (!_ending && Authority != null)
             {
                 _ending = true;
-                try { FlushDepartures(); Authority.Save(); } catch (Exception error) { Debug.LogError("营地退出保存失败：" + error.GetType().Name); }
+                try { FlushDepartures(); GetComponent<CampWorld>()?.CapturePhysics(); Authority.Save(); } catch (Exception error) { Debug.LogError("营地退出保存失败：" + error.GetType().Name); }
             }
         }
         private void OnDestroy()

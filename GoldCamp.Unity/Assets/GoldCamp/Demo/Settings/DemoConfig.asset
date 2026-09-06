@@ -34,3 +34,28 @@ MonoBehaviour:
     StunSeconds: 2
     ProtectionSeconds: 4
     RiverRespawnSeconds: 600
+    CellSize: 2
+    PitWidth: 6
+    PitLength: 6
+    PitDepth: 4
+    MineInterval: 0.55
+    BaseMineDamage: 35
+    WornMineDamage: 8
+    DurabilityPerHit: 0.35
+    BaseCellHealth: 90
+    DepthHealthIncrease: 20
+    StoneWeight: 48
+    IronWeight: 27
+    GoldWeight: 10
+    HeavyWeight: 8
+    RawWeight: 7
+    DepthValueWeight: 2
+    LadderStoneCost: 2
+    RepairIronCost: 1
+    RepairStoneCost: 3
+    InitialLadders: 2
+    DetectRange: 6
+    EscapeSeconds: 4
+    JumpSpeed: 6
+    Gravity: 18
+    ClimbSpeed: 2

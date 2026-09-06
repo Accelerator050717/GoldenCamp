@@ -14,16 +14,26 @@ namespace GoldCamp.Demo
         public CampRules Rules { get; }
         private readonly Action<CampState> _persist;
         private readonly Func<Vector3, Vector3, bool> _lineOfSight;
-        public static readonly Vector3 Spawn = new Vector3(0, 0, -4);
+        private readonly Func<Vector3, float, bool> _freePlacement;
+        public static readonly Vector3 Spawn = new Vector3(0, 0, -3);
         public static readonly Vector3 SalePoint = new Vector3(0, 0, 0);
 
         public CampAuthority(CampState state, CampRules rules, Action<CampState> persist,
-            Func<Vector3, Vector3, bool> lineOfSight = null)
+            Func<Vector3, Vector3, bool> lineOfSight = null, Func<Vector3, float, bool> freePlacement = null)
         {
             State = state ?? throw new ArgumentNullException(nameof(state));
-            Rules = rules ?? throw new ArgumentNullException(nameof(rules));
+            if (rules == null) throw new ArgumentNullException(nameof(rules));
+            Rules = JsonUtility.FromJson<CampRules>(JsonUtility.ToJson(rules));
+            if (state.MineInitialized)
+            {
+                Rules.CellSize = state.MineCellSize;
+                Rules.PitWidth = state.MineWidth;
+                Rules.PitLength = state.MineLength;
+                Rules.PitDepth = state.MineDepth;
+            }
             _persist = persist ?? throw new ArgumentNullException(nameof(persist));
             _lineOfSight = lineOfSight ?? ((a, b) => true);
+            _freePlacement = freePlacement ?? ((position, radius) => true);
             Validate(State);
         }
 
@@ -42,7 +52,7 @@ namespace GoldCamp.Demo
             if (player == null)
             {
                 player = new CampPlayer { Id = id, CredentialHash = hash,
-                    Name = SafeName(name), Position = Spawn, ColorIndex = next.Players.Count % 4 };
+                    Name = SafeName(name), Position = Spawn + Vector3.right * ((next.Players.Count % 4 - 1.5f) * .9f), ColorIndex = next.Players.Count % 4, LadderStock = Rules.InitialLadders };
                 next.Players.Add(player);
             }
             else
@@ -91,6 +101,11 @@ namespace GoldCamp.Demo
 
         private CampResult Apply(CampState state, CampPlayer actor, CampCommand command)
         {
+            if (command.Action != "cancel_escape" && command.Action != "unclip" && command.Action != "leave_assist")
+            {
+                Require(actor.StunnedUntil <= state.OnlineSeconds, "stunned", "暂时无法行动。");
+                Require(actor.EscapeAt <= 0, "escaping", "正在返回营地；可先取消。");
+            }
             switch (command.Action)
             {
                 case "pickup":
@@ -98,6 +113,7 @@ namespace GoldCamp.Demo
                     var item = GetItem(state, command);
                     Require(item.Place == ItemPlace.Ground, "occupied", "物品已被拿走。");
                     Require(!state.Items.Any(i => i.Place == ItemPlace.Hand && i.OwnerId == actor.Id), "hands_full", "手中已有物品。");
+                    Require(!state.Items.Any(i => i.AssistantId == actor.Id), "assisting", "请先退出协助搬运。");
                     RequireNear(actor.Position, item.Position, Rules.Reach);
                     Require(_lineOfSight(actor.Position + Vector3.up * 1.6f, item.Position), "blocked", "物品被遮挡。");
                     SetPlace(item, ItemPlace.Hand, actor.Id, "", actor.Position + Vector3.up);
@@ -112,6 +128,7 @@ namespace GoldCamp.Demo
                     Vector3 direction = command.Direction.sqrMagnitude > .01f ? command.Direction.normalized : Vector3.forward;
                     Vector3 end = actor.Position + Vector3.up + direction * 1.2f;
                     Require(_lineOfSight(actor.Position + Vector3.up, end), "blocked", "没有足够放置空间。");
+                    Require(_freePlacement(end, item.Kind == ItemKind.HeavyOre ? .85f : .4f), "blocked", "放置位置被占用。");
                     SetPlace(item, ItemPlace.Ground, "", "", end);
                     item.Velocity = command.Action == "throw" ? direction * 7f + Vector3.up : Vector3.zero;
                     return Ok(command.Action == "throw" ? "矿物已抛出。" : "矿物已放下。");
@@ -138,7 +155,7 @@ namespace GoldCamp.Demo
                     receiver.Balance += command.Amount;
                     return Ok("转账完成。", command.Amount);
                 }
-                default: throw new RuleFailure("action", "未知操作。");
+                default: return ApplyMining(state, actor, command);
             }
         }
 
@@ -147,6 +164,11 @@ namespace GoldCamp.Demo
             var next = CampCodec.Clone(State);
             var actor = next.Players.Find(p => p.Id == playerId);
             if (actor == null) return;
+            // A disconnected miner cannot reserve a ladder or finish a timed escape offline.
+            actor.ClimbingLadderId = "";
+            actor.EscapeAt = 0;
+            actor.Action = "";
+            actor.ActionUntil = 0;
             string bag = "offline-" + Guid.NewGuid().ToString("N");
             foreach (var item in next.Items.Where(i => i.OwnerId == playerId &&
                 (i.Place == ItemPlace.Hand || i.Place == ItemPlace.Pocket || i.Place == ItemPlace.Mouth)))
@@ -215,8 +237,22 @@ namespace GoldCamp.Demo
             Require(state.Receipts.All(r => r != null && !string.IsNullOrEmpty(r.Key) && !string.IsNullOrEmpty(r.Fingerprint) && r.Result != null), "save", "交易回执损坏。");
             Require(state.Receipts.Select(r => r.Key).Distinct().Count() == state.Receipts.Count, "save", "交易回执编号重复。");
             foreach (var item in state.Items)
+            {
                 if (item.Place != ItemPlace.Ground && item.Place != ItemPlace.Vehicle)
                     Require(state.Players.Any(p => p.Id == item.OwnerId), "save", "物品归属无效。");
+                if (!string.IsNullOrEmpty(item.AssistantId))
+                    Require(item.Place == ItemPlace.Hand && item.Kind == ItemKind.HeavyOre && item.AssistantId != item.OwnerId && state.Players.Any(p => p.Id == item.AssistantId), "save", "协作归属无效。");
+            }
+            Require(state.Cells != null && state.Ladders != null, "save", "矿坑或梯子数据缺失。");
+            if (state.MineInitialized)
+            {
+                Require(state.MineCellSize > 0 && float.IsFinite(state.MineCellSize) && state.MineWidth > 0 && state.MineLength > 0 && state.MineDepth > 0, "save", "矿坑几何参数损坏。");
+                Require(state.Cells.All(c => c != null && !string.IsNullOrEmpty(c.Id) && c.X >= 0 && c.Z >= 0 && c.Depth >= 0 &&
+                    c.X < state.MineWidth && c.Z < state.MineLength && c.Depth < state.MineDepth && c.Health >= 0 && float.IsFinite(c.Health) && c.HiddenValue >= 0 && c.Version >= 0 && c.YieldCount > 0), "save", "矿格损坏。");
+                Require(state.Cells.Select(c => c.Id).Distinct().Count() == state.Cells.Count, "save", "矿格编号重复。");
+                Require(state.Ladders.All(l => l != null && !string.IsNullOrEmpty(l.Id) && state.Cells.Any(c => c.Id == l.CellId && c.Dug)), "save", "梯子锚点无效。");
+                Require(state.Ladders.Select(l => l.Id).Distinct().Count() == state.Ladders.Count && state.Ladders.Select(l => l.CellId).Distinct().Count() == state.Ladders.Count, "save", "梯子重复。");
+            }
             foreach (var player in state.Players)
             {
                 Require(state.Items.Count(i => i.OwnerId == player.Id && i.Place == ItemPlace.Hand) <= 1, "save", "手持归属重复。");
