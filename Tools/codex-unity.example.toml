@@ -1,0 +1,7 @@
+# Copy this section into this trusted project's .codex/config.toml.
+# Never replace the user's global configuration.
+# Configuration alone is not proof of a running server or editor connection.
+[mcp_servers.unityMCP]
+url = "http://127.0.0.1:8080/mcp"
+startup_timeout_sec = 30
+tool_timeout_sec = 60

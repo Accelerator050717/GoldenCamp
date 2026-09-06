@@ -1,0 +1,36 @@
+# Unity generated files
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+Builds/
+.vs/
+.idea/
+*.csproj
+*.sln
+*.slnx
+*.user
+*.pidb
+*.booproj
+*.opendb
+*.VC.db
+
+# Local tools, run evidence, caches, and credentials
+.local/
+.codex/
+.env
+.env.*
+*.ulf
+*.lic
+*.log
+__pycache__/
+.venv/
+
+# Preserve source archives locally; version the original Markdown only.
+intro/
+*.zip
+淘金营地_v0.1/*.pdf
+淘金营地_v0.1/*.docx

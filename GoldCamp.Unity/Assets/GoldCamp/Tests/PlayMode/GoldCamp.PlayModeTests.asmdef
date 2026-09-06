@@ -1,0 +1,7 @@
+{
+  "name": "GoldCamp.PlayModeTests",
+  "rootNamespace": "GoldCamp.Tests",
+  "references": ["GoldCamp.Runtime"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

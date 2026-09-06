@@ -1,0 +1,6 @@
+{
+  "name": "GoldCamp.Editor",
+  "references": ["GoldCamp.Runtime", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime", "MCPForUnity.Editor"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

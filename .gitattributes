@@ -1,0 +1,14 @@
+* text=auto
+*.cs text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.asmdef text eol=lf
+*.meta text eol=lf whitespace=-blank-at-eol
+*.unity text eol=lf whitespace=-blank-at-eol
+*.prefab text eol=lf whitespace=-blank-at-eol
+*.asset text eol=lf whitespace=-blank-at-eol
+*.mat text eol=lf whitespace=-blank-at-eol
+*.ps1 text eol=crlf
+# Unity emits spaces for empty YAML values; original Markdown uses hard breaks.
+淘金营地_v0.1/** whitespace=-blank-at-eol
+# M0 has no large binary assets requiring LFS. Add scoped LFS patterns when needed.

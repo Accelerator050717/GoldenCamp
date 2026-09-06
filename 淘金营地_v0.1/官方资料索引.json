@@ -1,0 +1,212 @@
+[
+  {
+    "id": "S01",
+    "title": "Unity 6 长期支持版本",
+    "url": "https://unity.com/releases/unity-6/support",
+    "note": "Unity 6.3 LTS 的支持周期；安装时选择实际验证的补丁版本。"
+  },
+  {
+    "id": "S02",
+    "title": "Unity 定价及 Runtime Fee 取消",
+    "url": "https://unity.com/products/pricing-updates",
+    "note": "Personal 使用资格与定价说明；取消 Runtime Fee 的官方公告：https://unity.com/blog/unity-is-canceling-the-runtime-fee 。"
+  },
+  {
+    "id": "S03",
+    "title": "Codex 应用与用量",
+    "url": "https://openai.com/index/introducing-the-codex-app/",
+    "note": "本地应用能力与 Windows 更新。额度、套餐及 API 单独计费参见：https://developers.openai.com/codex/pricing 。"
+  },
+  {
+    "id": "S04",
+    "title": "Codex MCP 接入",
+    "url": "https://developers.openai.com/codex/mcp",
+    "note": "外部工具配置方式；配置入口不等于工具已成功连接。"
+  },
+  {
+    "id": "S05",
+    "title": "Codex AGENTS.md",
+    "url": "https://developers.openai.com/codex/guides/agents-md",
+    "note": "项目与分层工作指令。"
+  },
+  {
+    "id": "S06",
+    "title": "CoplayDev MCP for Unity",
+    "url": "https://github.com/CoplayDev/unity-mcp",
+    "note": "维护者说明、许可与安装方式；这是第三方项目，不是 Unity 官方稳定性保证。"
+  },
+  {
+    "id": "S07",
+    "title": "Blender Python API 入门",
+    "url": "https://docs.blender.org/api/current/info_quickstart.html",
+    "note": "脚本化建模和场景操作入口。"
+  },
+  {
+    "id": "S08",
+    "title": "Blender 命令行参数",
+    "url": "https://docs.blender.org/manual/en/latest/advanced/command_line/arguments.html",
+    "note": "后台运行与 Python 脚本参数。"
+  },
+  {
+    "id": "S09",
+    "title": "Meshy 计划比较",
+    "url": "https://help.meshy.ai/en/articles/12062933-which-meshy-plan-is-right-for-you-free-vs-pro-vs-premium-vs-ultra",
+    "note": "计划、额度、下载及 API 权限；付费前查看账户实时显示。"
+  },
+  {
+    "id": "S10",
+    "title": "Meshy 商业使用许可",
+    "url": "https://help.meshy.ai/en/articles/9992001-can-i-use-meshy-assets-commercially-license-copyright-explained",
+    "note": "免费与付费资产的权利差异，以及输入素材的权利要求。"
+  },
+  {
+    "id": "S11",
+    "title": "Tripo 价格及 API",
+    "url": "https://www.tripo3d.ai/pricing",
+    "note": "仅作 AI 3D 替代选项；API 价格另见：https://developers.tripo3d.ai/en/pricing 。"
+  },
+  {
+    "id": "S12",
+    "title": "Kenney 资产许可",
+    "url": "https://kenney.nl/support",
+    "note": "游戏资产的 CC0 使用说明；标识等不应混为同一许可。"
+  },
+  {
+    "id": "S13",
+    "title": "Adobe Mixamo FAQ",
+    "url": "https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html",
+    "note": "商用动画、账户要求和中国国家代码账户限制。"
+  },
+  {
+    "id": "S14",
+    "title": "FishNet 维护者仓库",
+    "url": "https://github.com/FirstGearGames/FishNet",
+    "note": "联机框架与许可；不能替代对当前项目的兼容性测试。"
+  },
+  {
+    "id": "S15",
+    "title": "FishySteamworks 维护者仓库",
+    "url": "https://github.com/FirstGearGames/FishySteamworks",
+    "note": "FishNet 与 Steamworks.NET 依赖、P2P 配置和异机测试限制。"
+  },
+  {
+    "id": "S16",
+    "title": "Steam 网络与中继",
+    "url": "https://partner.steamgames.com/doc/features/multiplayer/networking",
+    "note": "网络方案概览；SDR 说明：https://partner.steamgames.com/doc/features/multiplayer/steamdatagramrelay 。"
+  },
+  {
+    "id": "S17",
+    "title": "Steam Voice",
+    "url": "https://partner.steamgames.com/doc/features/voice",
+    "note": "采集、压缩、传输责任及解压播放边界。"
+  },
+  {
+    "id": "S18",
+    "title": "Unity Test Framework 命令行测试",
+    "url": "https://docs.unity3d.com/Packages/com.unity.test-framework%402.0/manual/reference-command-line.html",
+    "note": "EditMode／PlayMode 测试运行参数；以安装包版本对应文档为准。"
+  },
+  {
+    "id": "S19",
+    "title": "GitHub Desktop 与 Git LFS",
+    "url": "https://docs.github.com/en/desktop/configuring-and-customizing-github-desktop/about-git-large-file-storage-and-github-desktop",
+    "note": "大文件版本管理；不等于可以上传无权公开的付费资源。"
+  },
+  {
+    "id": "S20",
+    "title": "Unity 资源元数据",
+    "url": "https://docs.unity3d.com/6000.1/Documentation/Manual/AssetMetadata.html",
+    "note": ".meta 与资源标识关系；版本控制配置需保存。"
+  },
+  {
+    "id": "S21",
+    "title": "Steam Direct 应用费用",
+    "url": "https://partner.steamgames.com/doc/gettingstarted/appfee",
+    "note": "每 App 费用与符合条件后的费用回收规则。"
+  },
+  {
+    "id": "S22",
+    "title": "Steam Direct 上架流程",
+    "url": "https://partner.steamgames.com/steamdirect",
+    "note": "账户、等待期、审查与发布准备。"
+  },
+  {
+    "id": "S23",
+    "title": "Steam Coming Soon",
+    "url": "https://partner.steamgames.com/doc/store/coming_soon",
+    "note": "公开商店页与至少两周要求。"
+  },
+  {
+    "id": "S24",
+    "title": "Steam 内容问卷与 AI 披露",
+    "url": "https://partner.steamgames.com/doc/gettingstarted/contentsurvey",
+    "note": "预生成／运行时生成内容及当前问卷要求。"
+  },
+  {
+    "id": "S25",
+    "title": "澳大利亚赌博内容分级",
+    "url": "https://www.classification.gov.au/classification-ratings/new-classifications-for-gambling-content-video-games",
+    "note": "模拟赌场赌博的年龄分级要求；不直接判定本设计最终等级。"
+  },
+  {
+    "id": "S26",
+    "title": "Steam Playtest",
+    "url": "https://partner.steamgames.com/doc/features/playtest",
+    "note": "测试分发、申请及实验性朋友邀请选项。"
+  },
+  {
+    "id": "S27",
+    "title": "Steam Early Access",
+    "url": "https://partner.steamgames.com/doc/store/earlyaccess",
+    "note": "抢先体验产品要求，不以未来完成承诺代替当前可玩产品。"
+  },
+  {
+    "id": "S28",
+    "title": "ElevenLabs 价格",
+    "url": "https://elevenlabs.io/pricing",
+    "note": "音效服务计划与当前价格；不同产品权利另核验。"
+  },
+  {
+    "id": "S29",
+    "title": "ElevenLabs 内容商业使用",
+    "url": "https://help.elevenlabs.io/hc/en-us/articles/13313564601361-Can-I-publish-the-content-I-generate-on-the-platform",
+    "note": "生成时订阅状态与商业使用限制。"
+  },
+  {
+    "id": "S30",
+    "title": "Blender 许可",
+    "url": "https://www.blender.org/about/license/",
+    "note": "开发工具许可与创作输出的区别。"
+  },
+  {
+    "id": "S31",
+    "title": "Godot 许可",
+    "url": "https://godotengine.org/license/",
+    "note": "引擎候选比较依据。"
+  },
+  {
+    "id": "S32",
+    "title": "Unreal Engine 许可",
+    "url": "https://www.unrealengine.com/en-US/license",
+    "note": "引擎候选比较依据；本文不锁定其费用适用结论。"
+  },
+  {
+    "id": "S33",
+    "title": "OBS Studio",
+    "url": "https://obsproject.com/",
+    "note": "实机录制与直播工具。"
+  },
+  {
+    "id": "S34",
+    "title": "DaVinci Resolve",
+    "url": "https://www.blackmagicdesign.com/products/davinciresolve",
+    "note": "剪辑与声音后期工具，优先验证免费版本是否满足需求。"
+  },
+  {
+    "id": "S35",
+    "title": "Audacity",
+    "url": "https://www.audacityteam.org/",
+    "note": "录制与音频编辑工具。"
+  }
+]
