@@ -35,7 +35,7 @@ E/F 实际入口：`Tools/Test-DemoVoice.ps1`、`Tools/Test-DemoFourPeers.ps1 -I
 & 'C:\Program Files\Unity\Hub\Editor\6000.3.23f1\Editor\Unity.exe' -projectPath 'M:\GoldCamp\GoldCamp.Unity'
 ```
 
-打开已生成的 `Assets/GoldCamp/Demo/Scenes/Demo_Camp.unity`，点击 Play；已有营地默认继续，也可独立新建或输入房主地址加入。WASD 移动、鼠标观察、Space 跳跃、E 交互/拾放/上下梯、Q 抛出、1/2 矿镐/探测器、左键使用工具、L 放梯、F 收入口袋、B 含/吐单颗金粒、X 取消动作、Tab 背包/烟酒、Esc 本地菜单。对准矿工时左键击晕、E 搜一个口袋格；房主可在菜单切换和平营地。加工台提供粗检/开窗/全开，对赌桌需双方确认后托管，结算原石回本人柜。菜单不暂停房间；返回营地会把随身货留在原地。当前以规则、网络路线和工具视觉检查为主，完整真人试玩待测。
+打开已生成的 `Assets/GoldCamp/Demo/Scenes/Demo_Camp.unity`，点击 Play，再从菜单选择“继续上次营地”；也可独立新建或输入房主地址加入。WASD 移动、鼠标观察、Space 跳跃、E 交互/拾放、对梯子E开始或退出攀爬再W/S上下、Q 抛出、1/2 矿镐/探测器、左键使用工具、L 放梯、F 收入口袋、B 含/吐单颗金粒、X 取消动作、Tab 背包/烟酒、Esc 本地菜单。对准矿工时左键击晕、E 搜一个口袋格；房主可在菜单切换和平营地。加工台提供粗检/开窗/全开，对赌桌需双方确认后托管，结算原石回本人柜。菜单不暂停房间；返回营地会把随身货留在原地。完整真人试玩仍待测。
 
 ## M0 历史基线入口
 
@@ -58,8 +58,8 @@ Windows x64 Mono Development 构建已成功，运行 `M:\GoldCamp\Builds\M0\Win
 
 ## 源码与自动化
 
-实际源码为 `GoldCamp.Unity/Assets/GoldCamp` 下的 Runtime、Editor、Tests；包版本以 `Packages/manifest.json` 与 `packages-lock.json` 为准。`.local/M0Staging` 是安装期间的历史暂存，不是继续开发的源码目录。
+当前Demo源码在 `GoldCamp.Unity/Assets/GoldCamp/Demo`：Core负责权威规则/存档，Networking负责会话/传输/模拟/语音，Presentation负责模型/UI/输入，Editor负责可重复生成，Tests保留规则回归。`Assets/GoldCamp` 下原Runtime、Editor、Tests属于M0历史基线。包版本以 `Packages/manifest.json` 与 `packages-lock.json` 为准。`.local/M0Staging` 是安装期间的历史暂存，不是继续开发的源码目录。
 
 唯一桥接为 CoplayDev MCP for Unity `10.2.0`，提交固定为 `30d22075093d1d35dfb0091c1c7550e9ad948577`。已完成本项目实例的 17 步真实 MCP 烟测，Editor API 烟测也已独立通过；两者的证据分别列在 STATUS。项目内入口及配置样例见 [AUTOMATION](docs/AUTOMATION.md)，不需要修改全局 Codex/MCP 配置。
 
-当前范围以 `Demo启动包_v0.3` 和活动任务为准，网络、存档、采矿、社交、成长与语音正在连续实施。环境与决定见 [ENVIRONMENT](docs/ENVIRONMENT.md)、[DECISIONS](docs/DECISIONS.md)。
+当前范围以 `Demo启动包_v0.3` 和活动任务为准，网络、存档、采矿、社交、成长与基础语音已进入当前候选，外部验收和已知问题见VALIDATION。环境与决定见 [ENVIRONMENT](docs/ENVIRONMENT.md)、[DECISIONS](docs/DECISIONS.md)。
