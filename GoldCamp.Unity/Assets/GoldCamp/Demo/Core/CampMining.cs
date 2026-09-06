@@ -106,8 +106,6 @@ namespace GoldCamp.Demo
                 return Ok("已停止协助搬运。");
             }
 
-            Require(actor.StunnedUntil <= state.OnlineSeconds, "stunned", "暂时无法行动。");
-            Require(actor.EscapeAt <= 0, "escaping", "正在返回营地；可先取消。");
             switch (command.Action)
             {
                 case "mine": return Mine(state, actor, command);
@@ -168,7 +166,7 @@ namespace GoldCamp.Demo
                     { item.AssistantId = ""; item.Version++; }
                     ShowAction(state, actor, "escape", Rules.EscapeSeconds);
                     return Ok("正在返回营地，随身矿物会留在原地；移动或取消可中止。");
-                default: throw new RuleFailure("action", "未知操作。");
+                default: return ApplySocial(state, actor, command);
             }
         }
 
@@ -202,7 +200,8 @@ namespace GoldCamp.Demo
                 {
                     Id = id, Kind = cell.YieldKind, Place = ItemPlace.Ground,
                     Position = CampMap.CellCenter(cell, Rules) + Vector3.up * (height - Rules.CellSize * .5f),
-                    HiddenValue = cell.HiddenValue, CoreKind = cell.CoreKind
+                    HiddenValue = cell.HiddenValue, CoreKind = cell.CoreKind,
+                    RawClueBand = cell.RawClueBand, RawWindowBand = cell.RawWindowBand
                 });
             }
             return Ok("岩层已挖开，矿物留在坑内。", cell.YieldCount);

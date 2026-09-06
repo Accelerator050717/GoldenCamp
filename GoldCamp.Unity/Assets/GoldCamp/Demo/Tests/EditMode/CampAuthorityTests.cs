@@ -269,11 +269,22 @@ namespace GoldCamp.Demo.Tests
             state.Items.Add(Item("pocket", ItemPlace.Pocket, FirstId));
             state.Items.Add(Item("mouth", ItemPlace.Mouth, FirstId));
             state.Items.Add(Item("safe", ItemPlace.Cabinet, FirstId));
-            state.Items.Add(Item("bet", ItemPlace.Escrow, FirstId));
+            state.Items.Add(Item("bet", ItemPlace.Escrow, FirstId, ItemKind.RawStone));
+            state.Items.Add(Item("bet-other", ItemPlace.Escrow, SecondId, ItemKind.RawStone));
             state.Items.Add(Item("vehicle", ItemPlace.Vehicle, FirstId));
             state.Items.Single(i => i.Id == "safe").ContainerId = "personal-cabinet";
-            state.Items.Single(i => i.Id == "bet").ContainerId = "locked-bet";
+            string wagerId = Guid.NewGuid().ToString("N");
+            state.Items.Single(i => i.Id == "bet").ContainerId = "wager:" + wagerId;
+            state.Items.Single(i => i.Id == "bet").HiddenValue = 50;
+            state.Items.Single(i => i.Id == "bet-other").ContainerId = "wager:" + wagerId;
+            state.Items.Single(i => i.Id == "bet-other").HiddenValue = 30;
             state.Items.Single(i => i.Id == "vehicle").ContainerId = "camp-cart";
+            state.Wager = new CampWager
+            {
+                Id = wagerId, PlayerA = FirstId, PlayerB = SecondId, StoneA = "bet", StoneB = "bet-other",
+                Version = 1, Phase = WagerPhase.Locked, Stake = 5, ConfirmedA = true, ConfirmedB = true,
+                ValueA = 50, ValueB = 30
+            };
             var authority = Authority(state);
             string before = Assets(authority.State);
 
@@ -291,7 +302,7 @@ namespace GoldCamp.Demo.Tests
             Assert.That(heavy.Place, Is.EqualTo(ItemPlace.Ground));
             Assert.That(heavy.OwnerId, Is.Empty);
             Assert.That(heavy.ContainerId, Is.Empty);
-            foreach (string safeId in new[] { "safe", "bet", "vehicle" })
+            foreach (string safeId in new[] { "safe", "bet", "bet-other", "vehicle" })
             {
                 Assert.That(JsonUtility.ToJson(authority.State.Items.Single(i => i.Id == safeId)),
                     Is.EqualTo(JsonUtility.ToJson(state.Items.Single(i => i.Id == safeId))));
@@ -301,7 +312,7 @@ namespace GoldCamp.Demo.Tests
             string once = Assets(authority.State);
             authority.Disconnect(FirstId);
             Assert.That(Assets(authority.State), Is.EqualTo(once));
-            Assert.That(authority.State.Items.Count, Is.EqualTo(6));
+            Assert.That(authority.State.Items.Count, Is.EqualTo(7));
             Assert.That(Assets(_saved), Is.EqualTo(once));
         }
 

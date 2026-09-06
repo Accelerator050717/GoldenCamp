@@ -15,11 +15,14 @@ namespace GoldCamp.Demo
         private readonly Action<CampState> _persist;
         private readonly Func<Vector3, Vector3, bool> _lineOfSight;
         private readonly Func<Vector3, float, bool> _freePlacement;
+        private readonly Func<string, bool> _isOnline;
+        private readonly Func<string, bool> _isHost;
         public static readonly Vector3 Spawn = new Vector3(0, 0, -3);
         public static readonly Vector3 SalePoint = new Vector3(0, 0, 0);
 
         public CampAuthority(CampState state, CampRules rules, Action<CampState> persist,
-            Func<Vector3, Vector3, bool> lineOfSight = null, Func<Vector3, float, bool> freePlacement = null)
+            Func<Vector3, Vector3, bool> lineOfSight = null, Func<Vector3, float, bool> freePlacement = null,
+            Func<string, bool> isOnline = null, Func<string, bool> isHost = null)
         {
             State = state ?? throw new ArgumentNullException(nameof(state));
             if (rules == null) throw new ArgumentNullException(nameof(rules));
@@ -34,6 +37,8 @@ namespace GoldCamp.Demo
             _persist = persist ?? throw new ArgumentNullException(nameof(persist));
             _lineOfSight = lineOfSight ?? ((a, b) => true);
             _freePlacement = freePlacement ?? ((position, radius) => true);
+            _isOnline = isOnline ?? (_ => true);
+            _isHost = isHost ?? (_ => false);
             Validate(State);
         }
 
@@ -101,10 +106,13 @@ namespace GoldCamp.Demo
 
         private CampResult Apply(CampState state, CampPlayer actor, CampCommand command)
         {
-            if (command.Action != "cancel_escape" && command.Action != "unclip" && command.Action != "leave_assist")
+            if (command.Action != "cancel_escape" && command.Action != "unclip" && command.Action != "leave_assist"
+                && command.Action != "cancel_action" && command.Action != "wager_cancel")
             {
                 Require(actor.StunnedUntil <= state.OnlineSeconds, "stunned", "暂时无法行动。");
                 Require(actor.EscapeAt <= 0, "escaping", "正在返回营地；可先取消。");
+                Require(actor.ActionUntil <= state.OnlineSeconds || (actor.Action != "rob" && actor.Action != "smoke" && actor.Action != "drink"),
+                    "action_busy", "请先取消当前表演或搜袋动作。");
             }
             switch (command.Action)
             {
@@ -139,7 +147,7 @@ namespace GoldCamp.Demo
                     RequireNear(actor.Position, SalePoint, 4f);
                     Require(item.OwnerId == actor.Id && (item.Place == ItemPlace.Hand || item.Place == ItemPlace.Pocket), "ownership", "只能出售自己携带的货物。");
                     long price = Price(item);
-                    Require(actor.Balance <= Rules.MoneyLimit - price, "money_limit", "余额达到上限。");
+                    Require(actor.Balance <= Rules.MoneyLimit - price - ReservedCredit(state, actor.Id), "money_limit", "余额达到上限。");
                     actor.Balance += price;
                     SetPlace(item, ItemPlace.Sold, actor.Id, "", item.Position);
                     return Ok("成交：" + price + " 金币。", price);
@@ -150,7 +158,7 @@ namespace GoldCamp.Demo
                     Require(receiver != null && receiver.Id != actor.Id, "recipient", "请选择另一位营地成员。");
                     Require(command.Amount > 0 && command.Amount <= Rules.MoneyLimit, "amount", "金额无效。");
                     Require(actor.Balance >= command.Amount, "funds", "余额不足。");
-                    Require(receiver.Balance <= Rules.MoneyLimit - command.Amount, "money_limit", "对方余额达到上限。");
+                    Require(receiver.Balance <= Rules.MoneyLimit - command.Amount - ReservedCredit(state, receiver.Id), "money_limit", "对方余额达到上限。");
                     actor.Balance -= command.Amount;
                     receiver.Balance += command.Amount;
                     return Ok("转账完成。", command.Amount);
@@ -164,6 +172,7 @@ namespace GoldCamp.Demo
             var next = CampCodec.Clone(State);
             var actor = next.Players.Find(p => p.Id == playerId);
             if (actor == null) return;
+            DisconnectSocial(next, playerId);
             // A disconnected miner cannot reserve a ladder or finish a timed escape offline.
             actor.ClimbingLadderId = "";
             actor.EscapeAt = 0;
@@ -228,6 +237,7 @@ namespace GoldCamp.Demo
         {
             Require(state != null && state.Players != null && state.Items != null && state.Receipts != null, "save", "存档集合缺失。");
             Require(state.SchemaVersion == 1 && Guid.TryParseExact(state.WorldId, "N", out _), "save", "存档版本或世界 ID 无效。");
+            Require(state.Wagers != null && state.Wagers.Count <= 1 && state.Wagers.All(w=>w!=null), "save", "赌桌集合损坏。");
             Require(state.Players.All(p => p != null && !string.IsNullOrEmpty(p.Id) && p.Balance >= 0 && CampCodec.IsFinite(p.Position)), "save", "玩家数据无效。");
             Require(state.Players.Select(p => p.Id).Distinct().Count() == state.Players.Count, "save", "玩家 ID 重复。");
             Require(state.Items.All(i => i != null && !string.IsNullOrEmpty(i.Id) && i.Quantity > 0 && i.HiddenValue >= 0 &&
@@ -258,6 +268,7 @@ namespace GoldCamp.Demo
                 Require(state.Items.Count(i => i.OwnerId == player.Id && i.Place == ItemPlace.Hand) <= 1, "save", "手持归属重复。");
                 Require(state.Items.Count(i => i.OwnerId == player.Id && i.Place == ItemPlace.Mouth) <= 1, "save", "嘴槽归属重复。");
             }
+            ValidateSocial(state);
         }
     }
 }

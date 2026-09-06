@@ -18,7 +18,7 @@ namespace GoldCamp.Demo
                  Vector3.Distance(State.Players.Find(p => p.Id == i.AssistantId).Position, State.Players.Find(p => p.Id == i.OwnerId).Position) > 4f));
             bool river = State.MineInitialized && State.OnlineSeconds >= State.NextRiverSpawn &&
                 !State.Players.Any(p => onlineIds.Contains(p.Id) && Vector3.Distance(p.Position, CampMap.RiverPoint) < 10f);
-            if (!escape && !helpers && !river) return;
+            if (!escape && !helpers && !river && !NeedsSocialTick(State)) return;
             var next = CampCodec.Clone(State);
             foreach (var p in next.Players.Where(p => onlineIds.Contains(p.Id) && p.EscapeAt > 0 && p.EscapeAt <= next.OnlineSeconds))
             {
@@ -40,6 +40,7 @@ namespace GoldCamp.Demo
                 }
                 next.NextRiverSpawn = next.OnlineSeconds + Rules.RiverRespawnSeconds;
             }
+            TickSocial(next, onlineIds);
             Commit(next);
         }
 

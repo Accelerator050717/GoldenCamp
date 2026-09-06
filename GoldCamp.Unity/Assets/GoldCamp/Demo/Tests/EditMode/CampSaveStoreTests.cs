@@ -231,6 +231,8 @@ namespace GoldCamp.Demo.Tests
         private static CampState Snapshot(long revision)
         {
             const string playerId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+            const string otherPlayerId = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+            string wagerId = Guid.NewGuid().ToString("N");
             var state = CampAuthority.NewWorld("test-only permanent camp", 13579);
             state.Revision = revision;
             state.SavedUtc = "2026-09-05T00:00:00.0000000Z";
@@ -242,6 +244,11 @@ namespace GoldCamp.Demo.Tests
                 Balance = 456, Position = new Vector3(1, 2, 3), Yaw = 45,
                 ToolLevel = 2, DetectorLevel = 1, Durability = 72.5f, ColorIndex = 3
             });
+            state.Players.Add(new CampPlayer
+            {
+                Id = otherPlayerId, CredentialHash = CampAuthority.Hash("test-only other credential"), Name = "测试对手",
+                Balance = 300, Position = new Vector3(2, 2, 3), ColorIndex = 1
+            });
             foreach (var place in new[] { ItemPlace.Ground, ItemPlace.Hand, ItemPlace.Pocket, ItemPlace.Mouth,
                          ItemPlace.Cabinet, ItemPlace.Vehicle, ItemPlace.Escrow, ItemPlace.Sold })
             {
@@ -249,12 +256,27 @@ namespace GoldCamp.Demo.Tests
                 {
                     Id = "ore-" + place, Kind = ItemKind.RawStone, Place = place,
                     OwnerId = place == ItemPlace.Ground ? "" : playerId,
-                    ContainerId = place == ItemPlace.Cabinet ? "cabinet-a" : place == ItemPlace.Vehicle ? "cart-a" : place == ItemPlace.Escrow ? "bet-a" : "",
+                    ContainerId = place == ItemPlace.Cabinet ? "cabinet-a" : place == ItemPlace.Vehicle ? "cart-a" : place == ItemPlace.Escrow ? "wager:" + wagerId : "",
                     Position = new Vector3(4, 5, 6), Velocity = new Vector3(.1f, .2f, .3f), Version = 7,
                     HiddenValue = 600, CoreKind = "gold-core", RevealStage = 1,
                     InspectedBy = new System.Collections.Generic.List<string> { playerId }
                 });
             }
+            // Escrow is part of a complete locked transaction, never an orphan
+            // location. Roundtrip and fault tests retain both original stones.
+            state.Items.Add(new CampItem
+            {
+                Id = "ore-Escrow-second", Kind = ItemKind.RawStone, Place = ItemPlace.Escrow,
+                OwnerId = otherPlayerId, ContainerId = "wager:" + wagerId, Position = new Vector3(5, 5, 6),
+                Version = 7, HiddenValue = 600, CoreKind = "gold-core", RevealStage = 1
+            });
+            state.Wager = new CampWager
+            {
+                Id = wagerId, PlayerA = playerId, PlayerB = otherPlayerId,
+                StoneA = "ore-Escrow", StoneB = "ore-Escrow-second", StoneVersionA = 7, StoneVersionB = 7,
+                Version = 1, Phase = WagerPhase.Locked, Stake = 20, ConfirmedA = true, ConfirmedB = true,
+                ValueA = 600, ValueB = 600
+            };
             state.Receipts.Add(new CampReceipt
             {
                 Key = playerId + ":durable-operation", Fingerprint = CampAuthority.Hash("test-only fingerprint"),

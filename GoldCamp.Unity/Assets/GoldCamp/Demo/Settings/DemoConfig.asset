@@ -59,3 +59,8 @@ MonoBehaviour:
     JumpSpeed: 6
     Gravity: 18
     ClimbSpeed: 2
+    AttackReach: 2.4
+    RobReach: 1.8
+    RobSeconds: 1
+    SmokeSeconds: 6
+    DrinkSeconds: 2.5

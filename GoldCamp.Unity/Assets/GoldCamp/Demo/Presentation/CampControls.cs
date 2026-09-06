@@ -12,6 +12,7 @@ namespace GoldCamp.Demo
         public float Sensitivity = 2f, FieldOfView = 75f;
         public string Hint { get; private set; } = "";
         public CampTarget Target { get; private set; }
+        public int CurrentTool => _tool;
         private string _world;
         private int _sequence, _tool = 1;
         private float _yaw, _pitch, _nextSend, _nextMine, _vertical;
@@ -66,6 +67,13 @@ namespace GoldCamp.Demo
             var hand = view.Items.Find(i => i.OwnerId == self.Id && i.Place == ItemPlace.Hand);
             if (Input.GetKeyDown(KeyCode.Q) && hand != null) Send("throw", hand.Id, hand.Version);
             if (Input.GetKeyDown(KeyCode.F) && hand != null) Send("pocket", hand.Id, hand.Version);
+            if (Input.GetKeyDown(KeyCode.B))
+            {
+                var mouth = view.Items.Find(i => i.OwnerId == self.Id && i.Place == ItemPlace.Mouth);
+                if (mouth != null) Send("spit", mouth.Id, mouth.Version);
+                else if (hand != null) Send("mouth", hand.Id, hand.Version);
+            }
+            if (Input.GetKeyDown(KeyCode.X)) Send("cancel_action");
             if (Input.GetKeyDown(KeyCode.L)) PlaceLadder();
             if (Input.GetKeyDown(KeyCode.E))
             {
@@ -75,6 +83,8 @@ namespace GoldCamp.Demo
                 { var ladder = view.Ladders.Find(l => l.Id == Target.Id); if (ladder != null) Send("climb", ladder.Id, ladder.Version); }
                 else if (Target?.Kind == "item")
                 { var item = view.Items.Find(i => i.Id == Target.Id); if (item != null) Send(item.Place == ItemPlace.Hand && item.OwnerId != self.Id ? "assist" : "pickup", item.Id, item.Version); }
+                else if (Target?.Kind == "player") Send("rob", Target.Id);
+                else if (Target?.Kind == "bag") { Hud.LootContainer = Target.Id; Hud.Panel = "bagloot"; }
                 else if (hand != null) Send("drop", hand.Id, hand.Version);
             }
             if (Input.GetMouseButton(0) && Time.unscaledTime >= _nextMine)
@@ -83,16 +93,18 @@ namespace GoldCamp.Demo
                 if (_tool == 2) Send("detect", Target?.Id ?? "");
                 else if (Target?.Kind == "cell")
                 { var cell = view.Cells.Find(c => c.Id == Target.Id); if (cell != null) Send("mine", cell.Id, cell.Version); }
+                else if (Target?.Kind == "player") Send("attack", Target.Id);
             }
         }
         private Vector3 Predict(PublicMiner self, CampView view, float x, float z, bool control)
         {
             if (_prediction == null)
             {
-                var go = new GameObject("Local view prediction"); go.layer = 2; go.transform.position = self.Position;
+                var go = new GameObject("Local view prediction"); go.transform.SetParent(Session.transform,false); go.layer = 2; go.transform.position = self.Position;
                 _prediction = go.AddComponent<CharacterController>();
                 _prediction.height = 1.8f; _prediction.radius = .3f; _prediction.center = Vector3.up * .9f;
                 _prediction.stepOffset = .3f; _prediction.skinWidth = .025f;
+                Session.GetComponent<CampWorld>()?.IgnoreMinerCollisions(_prediction);
             }
             float error = Vector3.Distance(_prediction.transform.position, self.Position);
             if (error > 2f || !string.IsNullOrEmpty(self.ClimbingLadderId))
@@ -130,8 +142,10 @@ namespace GoldCamp.Demo
             if (Target == null) return _tool == 1 ? "矿镐 · 对准矿坑岩层按住左键" : "探测器 · 左键扫描";
             if (Target.Kind == "cell") return "可挖矿体 · " + (_tool == 1 ? "左键挥镐" : "左键探测");
             if (Target.Kind == "item") return "E 拿起 / 协助搬运";
+            if (Target.Kind == "bag") return "E 查看掉落包 · 逐件取出";
             if (Target.Kind == "ladder") return "E 攀爬 · W / S 上下 · E 离梯";
-            return "E 打开 " + (Target.Id == "sale" ? "收购台" : Target.Id == "repair" ? "维修台" : "个人储物柜");
+            if (Target.Kind == "player") return _tool == 2 ? "左键扫人 · 只给粗略矿物反应" : "左键短晕 · E 搜一个口袋格 · X 取消";
+            return "E 打开 " + (Target.Id == "sale" ? "收购台" : Target.Id == "repair" ? "维修台" : Target.Id == "cutter" ? "原石加工" : Target.Id == "wager" ? "原石对赌桌" : "个人储物柜");
         }
         public void SaveSettings()
         { PlayerPrefs.SetFloat("Demo.Mouse", Sensitivity); PlayerPrefs.SetFloat("Demo.FOV", FieldOfView); PlayerPrefs.Save(); }

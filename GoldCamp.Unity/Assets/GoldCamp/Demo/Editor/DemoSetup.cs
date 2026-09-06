@@ -33,8 +33,10 @@ namespace GoldCamp.Demo.Editor
             var session = root.AddComponent<CampSession>();
             session.Config = config;
             var hud = root.AddComponent<CampHud>(); hud.Session = session;
+            hud.InterfaceFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/GoldCamp/Demo/Fonts/NotoSansCJKsc-Regular.otf");
             root.AddComponent<CampSimulation>().Session = session;
             var world = root.AddComponent<CampWorld>(); world.Session = session;
+            world.NameFont = hud.InterfaceFont;
             var controls = root.AddComponent<CampControls>(); controls.Session = session; controls.Hud = hud; hud.Controls = controls;
             var camera = new GameObject("Main Camera").AddComponent<Camera>();
             camera.tag = "MainCamera";
@@ -46,11 +48,13 @@ namespace GoldCamp.Demo.Editor
             camera.nearClipPlane = .04f; camera.farClipPlane = 200; controls.Camera = camera;
             var sun = new GameObject("Sun").AddComponent<Light>();
             sun.type = LightType.Directional; sun.intensity = 2;
+            sun.color = new Color(1f,.91f,.78f); sun.shadows = LightShadows.Soft; sun.shadowStrength = .65f;
             sun.transform.rotation = Quaternion.Euler(48, -35, 0);
             RenderSettings.ambientLight = new Color(.6f, .63f, .57f);
-            world.Palette = new[] { Material("CampGround", new Color(.37f,.42f,.21f)), Material("Rock", new Color(.43f,.41f,.34f)),
+            world.Palette = new[] { Material("CampGround", new Color(.36f,.41f,.23f)), Material("Rock", new Color(.43f,.41f,.34f)),
                 Material("Iron",new Color(.35f,.4f,.43f)), Material("Gold",new Color(1,.7f,.1f)), Material("Wood",new Color(.38f,.22f,.11f)),
                 Material("Miner",new Color(.35f,.65f,.27f)), Material("Clothes",new Color(.15f,.19f,.19f)), Material("Hardhat",new Color(1,.75f,.12f)) };
+            var hands=root.AddComponent<CampFirstPerson>();hands.Controls=controls;hands.Session=session;hands.Palette=world.Palette;
             // Four solid banks leave a real hole for runtime finite mine cells.
             Box("West bank",new Vector3(-23,-4.5f,20),new Vector3(34,9,90),world.Palette[0]);
             Box("East bank",new Vector3(23,-4.5f,20),new Vector3(34,9,90),world.Palette[0]);
@@ -63,7 +67,10 @@ namespace GoldCamp.Demo.Editor
             Box("Boundary north",new Vector3(0,1,65),new Vector3(80,3,.6f),world.Palette[1]);
             Station("收购台", "station", "sale", CampAuthority.SalePoint, world.Palette[4]);
             Station("维修台", "station", "repair", CampMap.RepairPoint, world.Palette[2]);
-            for (int i=0;i<4;i++) Station("个人储物柜 " + (i+1), "cabinet", i.ToString(), CampMap.CabinetPoint(i), world.Palette[4]);
+            Station("原石加工", "station", "cutter", CampMap.CutterPoint, world.Palette[4]);
+            Station("原石对赌", "station", "wager", CampMap.WagerPoint, world.Palette[4]);
+            for (int i=0;i<4;i++) Station("个人储物柜 " + (i+1), "cabinet", i.ToString(), CampMap.CabinetPoint(i) + Vector3.right * (i<2?-1f:1f), world.Palette[4]);
+            CampArtBuilder.Build(hud.InterfaceFont);
             if (!EditorSceneManager.SaveScene(scene, ScenePath)) throw new IOException("Demo scene could not be saved.");
             var others = EditorBuildSettings.scenes.Where(s => s.path != ScenePath).ToList();
             others.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
@@ -90,10 +97,8 @@ namespace GoldCamp.Demo.Editor
         private static void Station(string name, string kind, string id, Vector3 position, Material material)
         {
             var go = Box(name, position + Vector3.up * .55f, new Vector3(1.6f,1.1f,1), material);
+            if (kind == "cabinet") go.transform.localScale = new Vector3(.8f,1.1f,.6f);
             var target = go.AddComponent<CampTarget>(); target.Kind = kind; target.Id = id;
-            var sign = new GameObject("Sign").AddComponent<TextMesh>(); sign.transform.position = position + new Vector3(0,1.8f,-.52f);
-            sign.text = kind == "cabinet" ? "LOCKER " + (int.Parse(id)+1) : id.ToUpperInvariant();
-            sign.characterSize = .16f; sign.fontSize = 40; sign.anchor = TextAnchor.MiddleCenter;
         }
 
         [MenuItem("GoldCamp/Demo/Build Windows")]
@@ -106,6 +111,10 @@ namespace GoldCamp.Demo.Editor
                 target = BuildTarget.StandaloneWindows64, options = BuildOptions.Development });
             if (report.summary.result != BuildResult.Succeeded)
                 throw new InvalidOperationException("Demo Windows build failed: " + report.summary.result + "; errors=" + report.summary.totalErrors);
+            string licenses = Path.Combine(Path.GetDirectoryName(output), "Licenses");
+            Directory.CreateDirectory(licenses);
+            File.Copy(Path.Combine(Application.dataPath,"GoldCamp/Demo/Fonts/LICENSE.txt"),Path.Combine(licenses,"Noto-OFL.txt"),true);
+            File.Copy(Path.Combine(Application.dataPath,"GoldCamp/Demo/Fonts/SOURCE.md"),Path.Combine(licenses,"Noto-source.md"),true);
             Debug.Log("GOLDCAMP_DEMO_BUILD_OK " + output + "; bytes=" + report.summary.totalSize);
         }
     }

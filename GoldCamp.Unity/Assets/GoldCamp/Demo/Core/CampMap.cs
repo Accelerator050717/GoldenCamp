@@ -8,6 +8,8 @@ namespace GoldCamp.Demo
         public const string StarterPit = "starter";
         public static readonly Vector3 PitOrigin = new Vector3(-6, 0, 20);
         public static readonly Vector3 RepairPoint = new Vector3(-6, 0, 1);
+        public static readonly Vector3 CutterPoint = new Vector3(5, 0, 0);
+        public static readonly Vector3 WagerPoint = new Vector3(5, 0, -7);
         public static readonly Vector3 RiverPoint = new Vector3(12, 0, 5);
         public static Vector3 CellCenter(int x, int depth, int z, CampRules rules) =>
             PitOrigin + new Vector3((x + .5f) * rules.CellSize, -(depth + .5f) * rules.CellSize, (z + .5f) * rules.CellSize);

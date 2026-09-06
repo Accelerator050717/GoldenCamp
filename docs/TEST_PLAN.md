@@ -1,4 +1,12 @@
-# M0 测试与验收
+# 测试与验收
+
+## 当前 v0.3
+
+以 `Demo启动包_v0.3/02_执行与验收.md` 的 A—F 与 T01—T18 为总验收，事实记录在 `tasks/DemoPrototype_v0.3.md`。当前 A—C 内部通过，D—F继续；最新109/109 EditMode，C社交213/213、B采矿130/130、A资产50/50均为真实本机双实例及重开测试，不是外网或真人证据。C含嘴槽/原石隐私/改筹码清确认/托管一次结算/掉包物理恢复；锁定中杀进程、异机语音与四人中美等仍在后续验收，不能整项冒充完成。
+
+实际 Demo 入口依次为 `Invoke-Unity.ps1 -Action DemoGenerate -WithGraphics`、`EditModeTests`、受影响的 `PlayModeTests -WithGraphics`、`DemoBuild -WithGraphics`，再运行 `Test-DemoNetwork.ps1`、`Test-DemoMining.ps1`、`Test-DemoSocial.ps1`。脚本只创建 `.local/TestRuns` 标记测试根，真实存档不得用作 fixture。社交脚本用明确的开发素材起点测试规则，不能等同于从零挖矿的成长路线。
+
+## M0 历史基线
 
 测试源码位于 `GoldCamp.Unity/Assets/GoldCamp/Tests`。最新实际结果：**EditMode 2/2 通过，PlayMode 12/12 通过，均失败 0、跳过 0**；结果 XML 与自动化证据见 `docs/STATUS.md`。Windows 构建、启动、部分真实键鼠和正常退出已验证；完整人工操作待用户验收，具体边界见 STATUS。编辑器固定为 Unity `6000.3.23f1`。
 

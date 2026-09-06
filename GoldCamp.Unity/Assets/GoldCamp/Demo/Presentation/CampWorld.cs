@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace GoldCamp.Demo
@@ -10,6 +11,7 @@ namespace GoldCamp.Demo
         public CampSession Session;
         // Ground, rock, iron, gold, wood, green cloth, dark cloth, yellow helmet.
         public Material[] Palette;
+        public Font NameFont;
 
         private class Visual
         {
@@ -31,18 +33,21 @@ namespace GoldCamp.Demo
             public ItemKind Kind;
             public ItemPlace Place;
             public int Version = int.MinValue;
+            public int RevealStage = -1;
         }
 
         private sealed class MinerVisual : Visual
         {
-            public Transform LeftArm, RightArm, LeftLeg, RightLeg;
-            public Vector3 PreviousPosition;
+            public CampMinerModel Model;
         }
+        private sealed class BagVisual : Visual { public Rigidbody Body; public Collider Collider; }
+        private readonly CampView _poseView = new CampView();
 
         private readonly Dictionary<string, CellVisual> _cells = new Dictionary<string, CellVisual>();
         private readonly Dictionary<string, ItemVisual> _items = new Dictionary<string, ItemVisual>();
         private readonly Dictionary<string, Visual> _ladders = new Dictionary<string, Visual>();
         private readonly Dictionary<string, MinerVisual> _miners = new Dictionary<string, MinerVisual>();
+        private readonly Dictionary<string, BagVisual> _bags = new Dictionary<string, BagVisual>();
         private readonly Dictionary<string, CampPlayer> _hostPlayers = new Dictionary<string, CampPlayer>();
         private readonly Dictionary<string, PublicMiner> _clientPlayers = new Dictionary<string, PublicMiner>();
         private readonly HashSet<string> _online = new HashSet<string>();
@@ -111,6 +116,8 @@ namespace GoldCamp.Demo
                 return;
             foreach (CampItem item in Session.Authority.State.Items)
             {
+                if (item.Place == ItemPlace.Ground && IsBag(item.ContainerId) && _bags.TryGetValue(item.ContainerId,out var bag))
+                { item.Position=bag.Body.position;item.Velocity=bag.Body.linearVelocity;continue; }
                 if (item.Place != ItemPlace.Ground || !_items.TryGetValue(item.Id, out ItemVisual visual) ||
                     visual.Place != ItemPlace.Ground || visual.Version != item.Version ||
                     visual.Body == null || visual.Body.isKinematic)
@@ -133,17 +140,25 @@ namespace GoldCamp.Demo
 
             _seen.Clear();
             foreach (CampItem item in state.Items)
+            {
                 SyncItem(item.Id, item.Kind, item.Place, item.OwnerId, item.Position, item.Velocity, item.Version, true);
+                if(item.Kind==ItemKind.RawStone) SyncRaw(item.Id,item.RevealStage,item.RawWindowBand,item.RevealStage>=2?item.CoreKind:"");
+            }
             RemoveMissing(_items);
+            SyncBags(state.Items.Where(i=>i.Place==ItemPlace.Ground&&IsBag(i.ContainerId)).Select(i=>(i.ContainerId,i.Position)),true);
 
             SyncLadders(state.Ladders, rules);
+            _poseView.OnlineSeconds = state.OnlineSeconds;
             _seen.Clear();
             foreach (CampPlayer player in state.Players)
             {
                 if (selfId == null || player.Id == selfId || !_online.Contains(player.Id))
                     continue;
-                SyncMiner(player.Id, player.Position, player.Yaw, player.Action,
-                    player.ActionUntil > state.OnlineSeconds, !string.IsNullOrEmpty(player.ClimbingLadderId));
+                var held = state.Items.Find(i => i.OwnerId == player.Id && i.Place == ItemPlace.Hand);
+                SyncMiner(new PublicMiner { Id=player.Id,Name=player.Name,ColorIndex=player.ColorIndex,Position=player.Position,
+                    Yaw=player.Yaw,Pitch=player.Pitch,Action=player.Action,ActionUntil=player.ActionUntil,StunnedUntil=player.StunnedUntil,
+                    ClimbingLadderId=player.ClimbingLadderId,CheeksFull=state.Items.Exists(i=>i.OwnerId==player.Id&&i.Place==ItemPlace.Mouth) },
+                    _poseView,held!=null,held?.Kind??ItemKind.Stone,state.Items.Exists(i=>i.AssistantId==player.Id));
             }
             RemoveMissing(_miners);
         }
@@ -157,8 +172,12 @@ namespace GoldCamp.Demo
 
             _seen.Clear();
             foreach (VisibleItem item in view.Items)
+            {
                 SyncItem(item.Id, item.Kind, item.Place, item.OwnerId, item.Position, Vector3.zero, item.Version, false);
+                if(item.Kind==ItemKind.RawStone) SyncRaw(item.Id,item.RevealStage,item.WindowBand,item.PublicCore);
+            }
             RemoveMissing(_items);
+            SyncBags(view.Items.Where(i=>i.Place==ItemPlace.Ground&&IsBag(i.ContainerId)).Select(i=>(i.ContainerId,i.Position)),false);
 
             SyncLadders(view.Ladders, rules);
             _seen.Clear();
@@ -166,8 +185,8 @@ namespace GoldCamp.Demo
             {
                 if (selfId == null || player.Id == selfId || !player.Online)
                     continue;
-                SyncMiner(player.Id, player.Position, player.Yaw, player.Action,
-                    player.ActionUntil > view.OnlineSeconds, !string.IsNullOrEmpty(player.ClimbingLadderId));
+                var held = view.Items.Find(i => i.OwnerId == player.Id && i.Place == ItemPlace.Hand);
+                SyncMiner(player, view, held != null, held?.Kind ?? ItemKind.Stone, view.Items.Exists(i=>i.AssistantId==player.Id));
             }
             RemoveMissing(_miners);
         }
@@ -209,6 +228,8 @@ namespace GoldCamp.Demo
             // Containers and escrow have their own future presentation; never leave a duplicate ore in space.
             if (place != ItemPlace.Ground && place != ItemPlace.Hand)
                 return;
+            string container = host ? Session.Authority.State.Items.Find(i=>i.Id==id)?.ContainerId : Session.View.Items.Find(i=>i.Id==id)?.ContainerId;
+            if (place == ItemPlace.Ground && IsBag(container)) return;
             _seen.Add(id);
             if (_items.TryGetValue(id, out ItemVisual existing) && existing.Kind != kind)
             {
@@ -308,15 +329,17 @@ namespace GoldCamp.Demo
             body.mass = heavy ? 16f : 1.5f;
             body.linearDamping = .15f;
             body.angularDamping = .65f;
+            body.maxDepenetrationVelocity = 1f;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             body.interpolation = RigidbodyInterpolation.None;
+            IgnoreExistingMiners(collider);
 
             uint shape = 2166136261;
             foreach (char letter in id)
                 shape = unchecked((shape ^ letter) * 16777619);
             float turn = shape % 37;
             int baseMaterial = kind == ItemKind.RawStone ? 4 : 1;
-            Piece(root.transform, "Stone shell", PrimitiveType.Cube, Vector3.zero, size * .78f, baseMaterial,
+            Piece(root.transform, "Stone shell", PrimitiveType.Sphere, Vector3.zero, size * .92f, baseMaterial,
                 Quaternion.Euler(8f, turn, -8f));
             Piece(root.transform, "Broken face", PrimitiveType.Cube, new Vector3(-size.x * .18f, .04f, -.04f),
                 size * .68f, baseMaterial, Quaternion.Euler(-13f, 24f + turn, 14f));
@@ -337,6 +360,56 @@ namespace GoldCamp.Demo
                         new Vector3(.2f, .14f, .21f), 1, Quaternion.Euler(18f, turn + i * 31f, 12f));
             }
             return new ItemVisual { Root = root, Body = body, Collider = collider, HeldTrigger = heldTrigger, Kind = kind };
+        }
+
+        private static bool IsBag(string container) => !string.IsNullOrEmpty(container) &&
+            (container.StartsWith("offline-",StringComparison.Ordinal)||container.StartsWith("escape-",StringComparison.Ordinal)||container.StartsWith("fall-",StringComparison.Ordinal));
+
+        private void SyncBags(IEnumerable<(string ContainerId,Vector3 Position)> items,bool host)
+        {
+            _seen.Clear();
+            foreach(var group in items.GroupBy(i=>i.ContainerId))
+            {
+                _seen.Add(group.Key);Vector3 position=group.First().Position;
+                bool created=!_bags.TryGetValue(group.Key,out var bag);
+                if(created)
+                {
+                    var root=NewRoot("Dropped cargo bag "+group.Key,"bag",group.Key);
+                    Piece(root.transform,"Canvas sack",PrimitiveType.Sphere,Vector3.zero,new Vector3(.62f,.65f,.55f),4);
+                    Piece(root.transform,"Tied neck",PrimitiveType.Cylinder,Vector3.up*.33f,new Vector3(.2f,.09f,.2f),6);
+                    var collider=root.AddComponent<BoxCollider>();collider.size=new Vector3(.62f,.65f,.55f);
+                    var body=root.AddComponent<Rigidbody>();body.mass=2;body.isKinematic=!host;body.useGravity=host;
+                    body.linearDamping=.8f;body.angularDamping=2;body.maxDepenetrationVelocity=1;
+                    body.constraints=RigidbodyConstraints.FreezeRotation;body.position=position;IgnoreExistingMiners(collider);
+                    bag=new BagVisual{Root=root,Body=body,Collider=collider};_bags.Add(group.Key,bag);
+                }
+                if(!host)bag.Body.position=Vector3.Lerp(bag.Body.position,position,created?1:FollowBlend());
+            }
+            RemoveMissing(_bags);
+        }
+
+        public void IgnoreMinerCollisions(CharacterController miner)
+        {
+            foreach(var item in _items.Values)if(item.Collider!=null)Physics.IgnoreCollision(miner,item.Collider,true);
+            foreach(var bag in _bags.Values)if(bag.Collider!=null)Physics.IgnoreCollision(miner,bag.Collider,true);
+        }
+        private void IgnoreExistingMiners(Collider cargo)
+        { foreach(var miner in Session.GetComponentsInChildren<CharacterController>())Physics.IgnoreCollision(cargo,miner,true); }
+
+        private void SyncRaw(string id,int stage,int windowBand,string core)
+        {
+            if(!_items.TryGetValue(id,out var item)||item.RevealStage==stage)return;
+            item.RevealStage=stage;
+            var old=item.Root.transform.Find("Raw revealed surface");
+            if(old!=null){old.gameObject.SetActive(false);Destroy(old.gameObject);}
+            if(stage==0)return;
+            int material=stage==1?(windowBand==3?3:windowBand==2?2:1):core=="gold"?3:core=="iron"?2:1;
+            if(stage>=2)
+                foreach(var r in item.Root.GetComponentsInChildren<Renderer>())
+                    if(r.name=="Stone shell"||r.name=="Broken face"||r.name=="Rough unopened crust")r.enabled=false;
+            Piece(item.Root.transform,"Raw revealed surface",PrimitiveType.Sphere,
+                stage==1?new Vector3(0,.14f,-.19f):Vector3.zero,
+                stage==1?new Vector3(.25f,.22f,.09f):new Vector3(.4f,.38f,.34f),material);
         }
 
         private void SyncLadders(List<CampLadder> ladders, CampRules rules)
@@ -372,62 +445,23 @@ namespace GoldCamp.Demo
             RemoveMissing(_ladders);
         }
 
-        private void SyncMiner(string id, Vector3 position, float yaw, string action, bool actionActive, bool climbing)
+        private void SyncMiner(PublicMiner miner, CampView view, bool hasHand, ItemKind handKind, bool assisting)
         {
-            _seen.Add(id);
-            bool created = !_miners.TryGetValue(id, out MinerVisual visual);
+            _seen.Add(miner.Id);
+            bool created = !_miners.TryGetValue(miner.Id, out MinerVisual visual);
             if (created)
             {
-                visual = CreateMiner(id);
-                _miners.Add(id, visual);
+                var go = NewRoot("Miner " + miner.Id, "player", miner.Id);
+                var trigger = go.AddComponent<BoxCollider>(); trigger.isTrigger = true;
+                trigger.center = Vector3.up * .9f; trigger.size = new Vector3(.75f,1.8f,.6f);
+                var model = CampMinerModel.Create(go.transform, Palette); model.SetNameFont(NameFont);
+                visual = new MinerVisual { Root = go, Model = model }; _miners.Add(miner.Id, visual);
             }
             Transform root = visual.Root.transform;
-            root.position = Vector3.Lerp(root.position, position, created ? 1f : FollowBlend());
-            root.rotation = Quaternion.Slerp(root.rotation, Quaternion.Euler(0f, yaw, 0f), created ? 1f : FollowBlend());
-            float motion = created ? 0f : Mathf.Clamp01((root.position - visual.PreviousPosition).magnitude / Mathf.Max(.001f, Time.unscaledDeltaTime));
-            float swing = Mathf.Sin(Time.unscaledTime * 9f) * 28f * motion;
-            visual.LeftLeg.localRotation = Quaternion.Euler(swing, 0f, 0f);
-            visual.RightLeg.localRotation = Quaternion.Euler(-swing, 0f, 0f);
-            visual.LeftArm.localRotation = Quaternion.Euler(climbing ? -140f + swing : -swing, 0f, -8f);
-            visual.RightArm.localRotation = Quaternion.Euler(climbing ? -140f - swing : swing, 0f, 8f);
-            if (actionActive && action == "mine")
-                visual.RightArm.localRotation = Quaternion.Euler(-85f + Mathf.Sin(Time.unscaledTime * 12f) * 40f, 0f, 8f);
-            visual.PreviousPosition = root.position;
+            root.position = Vector3.Lerp(root.position, miner.Position, created ? 1f : FollowBlend());
+            root.rotation = Quaternion.Slerp(root.rotation, Quaternion.Euler(0,miner.Yaw,0), created ? 1f : FollowBlend());
+            visual.Model.Pose(miner, view, hasHand, handKind, assisting);
         }
-
-        private MinerVisual CreateMiner(string id)
-        {
-            GameObject root = NewRoot("Miner " + id, "player", id);
-            BoxCollider trigger = root.AddComponent<BoxCollider>();
-            trigger.isTrigger = true;
-            trigger.center = new Vector3(0f, .95f, 0f);
-            trigger.size = new Vector3(.72f, 1.9f, .6f);
-            Piece(root.transform, "Green work jacket", PrimitiveType.Sphere, new Vector3(0f, 1.12f, 0f), new Vector3(.67f, .87f, .47f), 5);
-            Piece(root.transform, "Dark belt", PrimitiveType.Cube, new Vector3(0f, .82f, 0f), new Vector3(.53f, .16f, .41f), 6);
-            Piece(root.transform, "Head", PrimitiveType.Sphere, new Vector3(0f, 1.61f, 0f), Vector3.one * .4f, 4);
-            Piece(root.transform, "Helmet brim", PrimitiveType.Cylinder, new Vector3(0f, 1.79f, .02f), new Vector3(.52f, .035f, .49f), 7);
-            Piece(root.transform, "Helmet dome", PrimitiveType.Sphere, new Vector3(0f, 1.81f, 0f), new Vector3(.42f, .24f, .41f), 7);
-            Piece(root.transform, "Helmet lamp", PrimitiveType.Cylinder, new Vector3(0f, 1.8f, .24f), new Vector3(.11f, .035f, .11f), 2, Quaternion.Euler(90f, 0f, 0f));
-            var miner = new MinerVisual { Root = root };
-            miner.LeftArm = Limb(root.transform, "Left arm", new Vector3(-.37f, 1.4f, 0f), .45f, 5, 4);
-            miner.RightArm = Limb(root.transform, "Right arm", new Vector3(.37f, 1.4f, 0f), .45f, 5, 4);
-            miner.LeftLeg = Limb(root.transform, "Left leg", new Vector3(-.17f, .76f, 0f), .6f, 6, 6);
-            miner.RightLeg = Limb(root.transform, "Right leg", new Vector3(.17f, .76f, 0f), .6f, 6, 6);
-            return miner;
-        }
-
-        private Transform Limb(Transform parent, string name, Vector3 pivot, float length, int cloth, int tip)
-        {
-            Transform joint = new GameObject(name).transform;
-            joint.SetParent(parent, false);
-            joint.localPosition = pivot;
-            Piece(joint, "Cloth", PrimitiveType.Cylinder, Vector3.down * length * .5f,
-                new Vector3(.16f, length * .5f, .16f), cloth);
-            Piece(joint, "Hand or boot", PrimitiveType.Cube, Vector3.down * length + Vector3.forward * .035f,
-                new Vector3(.19f, .17f, .25f), tip);
-            return joint;
-        }
-
         private GameObject NewRoot(string name, string kind, string id)
         {
             GameObject root = new GameObject(name);
@@ -523,6 +557,7 @@ namespace GoldCamp.Demo
             _items.Clear();
             _ladders.Clear();
             _miners.Clear();
+            _bags.Clear();
             _hostPlayers.Clear();
             _clientPlayers.Clear();
             if (_generatedRoot != null)
@@ -563,7 +598,7 @@ namespace GoldCamp.Demo
         }
 
         private static bool IsTargetCenter(CampTarget target, Vector3 end) => target != null &&
-            (target.Kind == "item" || target.Kind == "cell") && (target.transform.position - end).sqrMagnitude <= .000001f;
+            (target.Kind == "item" || target.Kind == "cell" || target.Kind == "bag") && (target.transform.position - end).sqrMagnitude <= .000001f;
 
         private static bool IgnoredForSight(Collider collider) => collider == null || collider.isTrigger || collider is CharacterController;
 

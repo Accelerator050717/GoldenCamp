@@ -109,6 +109,16 @@ namespace GoldCamp.Demo
                     if (_store.Exists) throw new IOException("新营地目录已经存在，拒绝覆盖。");
                     if (IsTestSession && HasArgument("--gc-test-fixture"))
                         state.Items.Add(new CampItem { Id = "a-ore", Kind = ItemKind.Gold, Position = CampAuthority.Spawn + Vector3.forward * 1.2f, HiddenValue = 12345, CoreKind = "host-secret-test" });
+                    if (IsTestSession && HasArgument("--gc-test-social"))
+                    {
+                        state.Items.Add(new CampItem { Id="c-gold-a",Kind=ItemKind.Gold,Quantity=10,Position=new Vector3(-2,.6f,-3) });
+                        state.Items.Add(new CampItem { Id="c-gold-b",Kind=ItemKind.Gold,Quantity=10,Position=new Vector3(2,.6f,-3) });
+                        state.Items.Add(new CampItem { Id="c-raw-a",Kind=ItemKind.RawStone,HiddenValue=120,CoreKind="gold",Position=new Vector3(-2,.6f,-5) });
+                        state.Items.Add(new CampItem { Id="c-raw-b",Kind=ItemKind.RawStone,HiddenValue=240,CoreKind="gold",Position=new Vector3(2,.6f,-5) });
+                        state.Items.Add(new CampItem { Id="c-mouth-gold",Kind=ItemKind.Gold,Position=new Vector3(-3,.6f,-3) });
+                        state.Items.Add(new CampItem { Id="c-rob-stone",Kind=ItemKind.Stone,Position=new Vector3(-3,.6f,-5) });
+                        state.Items.Add(new CampItem { Id="c-rob-stone-2",Kind=ItemKind.Stone,Position=new Vector3(-3,.6f,-6) });
+                    }
                 }
                 else
                 {
@@ -118,9 +128,11 @@ namespace GoldCamp.Demo
                     state = _store.Load();
                 }
                 Authority = new CampAuthority(state, Config != null ? Config.Rules : new CampRules(), s => _store.Save(s), CampWorld.HasSight,
-                    (position, radius) => !Physics.CheckSphere(position, radius, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore));
+                    (position, radius) => !Physics.CheckSphere(position, radius, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore),
+                    id => _actors.Values.Contains(id), id => id == _identity.Id);
                 // Test fixtures for checkpoint A intentionally retain their exact minimal world.
                 if (!(IsTestSession && HasArgument("--gc-test-fixture"))) Authority.InitializeMining();
+                Authority.RecoverSocial();
                 Authority.Save();
                 Feedback = string.IsNullOrEmpty(_store.RecoveryNotice) ? "营地已保存。" : _store.RecoveryNotice;
                 _ending = false;
@@ -192,8 +204,19 @@ namespace GoldCamp.Demo
                 {
                     GetComponent<CampWorld>()?.CapturePhysics();
                     var command = JsonUtility.FromJson<CampCommand>(packet.Payload);
+                    long before = Authority.State.Revision;
                     CampResult result = Authority.Execute(actor, command);
                     Reply(peer, "result", JsonUtility.ToJson(result));
+                    if (result.Success && command.Action == "sell" && Authority.State.Revision > before)
+                    {
+                        var seller = Authority.State.Players.Find(p=>p.Id==actor);
+                        foreach(var nearby in _actors)
+                        {
+                            var recipient=Authority.State.Players.Find(p=>p.Id==nearby.Value);
+                            if(recipient!=null&&Vector3.Distance(recipient.Position,seller.Position)<=12)
+                                Reply(nearby.Key,"notice",seller.Name+" 售出矿物，收入 "+result.Amount+" 金币。");
+                        }
+                    }
                     BroadcastViews();
                 }
                 else if (packet.Type == "input" && _actors.TryGetValue(peer, out var movingActor))
@@ -217,6 +240,7 @@ namespace GoldCamp.Demo
             if (packet.Type == "view")
             {
                 View = JsonUtility.FromJson<CampView>(packet.Payload);
+                if (View.Wager != null && string.IsNullOrEmpty(View.Wager.Id)) View.Wager = null;
                 ViewChanged?.Invoke(View);
             }
             else if (packet.Type == "result")
@@ -225,7 +249,7 @@ namespace GoldCamp.Demo
                 Feedback = result.Message;
                 CommandResult?.Invoke(result);
             }
-            else if (packet.Type == "error" || packet.Type == "ended") Feedback = packet.Payload;
+            else if (packet.Type == "error" || packet.Type == "ended" || packet.Type == "notice") Feedback = packet.Payload;
         }
         private void BroadcastViews()
         {

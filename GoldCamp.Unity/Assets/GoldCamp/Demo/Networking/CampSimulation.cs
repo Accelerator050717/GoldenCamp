@@ -24,6 +24,8 @@ namespace GoldCamp.Demo
             var player = Session.Authority.State.Players.Find(p => p.Id == actor);
             if (player != null && player.EscapeAt > 0 && (Mathf.Abs(input.X) > .1f || Mathf.Abs(input.Z) > .1f))
                 Session.Authority.Execute(actor, new CampCommand { RequestId = "move-cancel-" + System.Guid.NewGuid().ToString("N"), Action = "cancel_escape" });
+            if (player != null && player.Action == "rob" && (Mathf.Abs(input.X) > .1f || Mathf.Abs(input.Z) > .1f))
+                Session.Authority.Execute(actor, new CampCommand { RequestId = "move-cancel-" + System.Guid.NewGuid().ToString("N"), Action = "cancel_action" });
             motor.LastSequence = input.Sequence;
             motor.Input = input; motor.LastInput = Time.unscaledTime;
         }
@@ -45,6 +47,7 @@ namespace GoldCamp.Demo
                     var body = go.AddComponent<CharacterController>();
                     body.height = 1.8f; body.radius = .3f; body.center = Vector3.up * .9f;
                     body.stepOffset = .3f; body.skinWidth = .025f;
+                    Session.GetComponent<CampWorld>()?.IgnoreMinerCollisions(body);
                     motor = new Motor { Body = body, FallStart = player.Position.y, Input = new CampInputFrame { Yaw = player.Yaw, Pitch = player.Pitch } };
                     _motors.Add(id, motor);
                 }

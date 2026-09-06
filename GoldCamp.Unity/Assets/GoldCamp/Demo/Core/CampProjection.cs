@@ -39,6 +39,9 @@ namespace GoldCamp.Demo
         public long SaleQuote;
         public string PublicCore;
         public string AssistantId;
+        public bool WasInspected;
+        public int WindowBand;
+        public string OwnClue;
     }
     [Serializable]
     public sealed class VisibleCell
@@ -47,6 +50,15 @@ namespace GoldCamp.Demo
         public int X, Depth, Z, Version, RequiredTool;
         public bool Dug;
         public float Health;
+    }
+    [Serializable]
+    public sealed class VisibleWager
+    {
+        public string Id, PlayerA, PlayerB, StoneA, StoneB, WinnerId;
+        public int Version;
+        public WagerPhase Phase;
+        public long Stake, ValueA, ValueB;
+        public bool ConfirmedA, ConfirmedB;
     }
     [Serializable]
     public sealed class CampView
@@ -60,6 +72,8 @@ namespace GoldCamp.Demo
         public List<CampLadder> Ladders = new List<CampLadder>();
         public double OnlineSeconds;
         public CampRules Rules;
+        public bool PvpEnabled;
+        public VisibleWager Wager;
     }
     public static class CampProjection
     {
@@ -67,7 +81,7 @@ namespace GoldCamp.Demo
         {
             CampState state = authority.State;
             var view = new CampView { WorldId = state.WorldId, Name = state.Name, Revision = state.Revision,
-                SavedUtc = state.SavedUtc, OnlineSeconds = state.OnlineSeconds, Rules = authority.Rules };
+                SavedUtc = state.SavedUtc, OnlineSeconds = state.OnlineSeconds, Rules = authority.Rules, PvpEnabled = state.PvpEnabled };
             foreach (var p in state.Players)
             {
                 view.Players.Add(new PublicMiner { Id = p.Id, Name = p.Name, Position = p.Position,
@@ -82,18 +96,32 @@ namespace GoldCamp.Demo
             foreach (var i in state.Items)
             {
                 if (i.Place == ItemPlace.Sold) continue;
-                if ((i.Place == ItemPlace.Cabinet || i.Place == ItemPlace.Pocket || i.Place == ItemPlace.Mouth) && i.OwnerId != playerId) continue;
+                bool offered = state.Wager?.Phase == WagerPhase.Draft && i.Kind == ItemKind.RawStone &&
+                    ((state.Wager.StoneA == i.Id && state.Wager.PlayerA == i.OwnerId) || (state.Wager.StoneB == i.Id && state.Wager.PlayerB == i.OwnerId));
+                if ((i.Place == ItemPlace.Cabinet || i.Place == ItemPlace.Pocket || i.Place == ItemPlace.Mouth) && i.OwnerId != playerId && !(offered && i.Place == ItemPlace.Pocket)) continue;
                 view.Items.Add(new VisibleItem { Id = i.Id, OwnerId = i.OwnerId, ContainerId = i.ContainerId,
                     Kind = i.Kind, Place = i.Place, Position = i.Position, Version = i.Version,
                     Quantity = i.Quantity, RevealStage = i.RevealStage, SaleQuote = authority.Price(i),
-                    PublicCore = i.RevealStage >= 2 ? i.CoreKind : "", AssistantId = i.AssistantId });
+                    PublicCore = i.RevealStage >= 2 ? i.CoreKind : "", AssistantId = i.AssistantId,
+                    WasInspected = i.InspectedBy != null && i.InspectedBy.Count > 0,
+                    WindowBand = i.RevealStage >= 1 ? i.RawWindowBand : 0,
+                    OwnClue = i.InspectedBy != null && i.InspectedBy.Contains(playerId) ? RawClue(i.RawClueBand) : "" });
             }
             foreach (var c in state.Cells)
                 view.Cells.Add(new VisibleCell { Id = c.Id, PitId = c.PitId, X = c.X, Depth = c.Depth, Z = c.Z,
                     Version = c.Version, RequiredTool = c.RequiredTool, Health = c.Health, Dug = c.Dug });
             view.Ladders.AddRange(state.Ladders.Select(l => new CampLadder { Id = l.Id, CellId = l.CellId,
                 PitId = l.PitId, X = l.X, Depth = l.Depth, Z = l.Z, Version = l.Version }));
+            if (state.Wager != null)
+            {
+                var w = state.Wager;
+                view.Wager = new VisibleWager { Id = w.Id, Version = w.Version, Phase = w.Phase, PlayerA = w.PlayerA,
+                    PlayerB = w.PlayerB, StoneA = w.StoneA, StoneB = w.StoneB, Stake = w.Stake,
+                    ConfirmedA = w.ConfirmedA, ConfirmedB = w.ConfirmedB, WinnerId = w.Phase == WagerPhase.Settled ? w.WinnerId : "",
+                    ValueA = w.Phase == WagerPhase.Settled ? w.ValueA : 0, ValueB = w.Phase == WagerPhase.Settled ? w.ValueB : 0 };
+            }
             return view;
         }
+        public static string RawClue(int band) => band <= 1 ? "粗检：反应偏弱，仍有不确定性。" : band == 2 ? "粗检：有持续反应，可能含矿。" : "粗检：反应较强，价格需开石确定。";
     }
 }

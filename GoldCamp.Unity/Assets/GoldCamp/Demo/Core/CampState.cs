@@ -6,6 +6,7 @@ namespace GoldCamp.Demo
 {
     public enum ItemKind { Stone, Iron, Gold, HeavyOre, RawStone }
     public enum ItemPlace { Ground, Hand, Pocket, Mouth, Cabinet, Vehicle, Escrow, Sold }
+    public enum WagerPhase { Draft, Locked, Settled, Cancelled }
 
     [Serializable]
     public sealed class CampRules
@@ -56,6 +57,11 @@ namespace GoldCamp.Demo
         public float JumpSpeed = 6f;
         public float Gravity = 18f;
         public float ClimbSpeed = 2f;
+        public float AttackReach = 2.4f;
+        public float RobReach = 1.8f;
+        public float RobSeconds = 1f;
+        public float SmokeSeconds = 6f;
+        public float DrinkSeconds = 2.5f;
     }
 
     [Serializable]
@@ -80,6 +86,8 @@ namespace GoldCamp.Demo
         public double ProtectionUntil;
         public string Action = "";
         public double ActionUntil;
+        public string ActionTargetId = "", ActionItemId = "";
+        public int ActionItemVersion;
     }
 
     [Serializable]
@@ -98,6 +106,7 @@ namespace GoldCamp.Demo
         public int HiddenValue;
         public string CoreKind;
         public int RevealStage;
+        public int RawClueBand, RawWindowBand;
         public List<string> InspectedBy = new List<string>();
         public string AssistantId = "";
     }
@@ -121,6 +130,7 @@ namespace GoldCamp.Demo
         public ItemKind YieldKind;
         public int YieldCount = 1, HiddenValue, RequiredTool = 1;
         public string CoreKind;
+        public int RawClueBand, RawWindowBand;
     }
 
     [Serializable]
@@ -150,6 +160,26 @@ namespace GoldCamp.Demo
         public List<CampReceipt> Receipts = new List<CampReceipt>();
         public List<CampCell> Cells = new List<CampCell>();
         public List<CampLadder> Ladders = new List<CampLadder>();
+        // Unity serializes a null inline class as an empty object. A 0/1 list preserves absence.
+        public List<CampWager> Wagers = new List<CampWager>();
+        public CampWager Wager
+        {
+            get => Wagers != null && Wagers.Count > 0 ? Wagers[0] : null;
+            set { Wagers = new List<CampWager>(); if (value != null) Wagers.Add(value); }
+        }
+    }
+
+    [Serializable]
+    public sealed class CampWager
+    {
+        public string Id, PlayerA, PlayerB, StoneA, StoneB;
+        public int Version, StoneVersionA, StoneVersionB;
+        public WagerPhase Phase;
+        public long Stake;
+        public bool ConfirmedA, ConfirmedB;
+        // Locked values stay host-only until final settlement.
+        public long ValueA, ValueB;
+        public string WinnerId = "";
     }
 
     [Serializable]
@@ -181,6 +211,11 @@ namespace GoldCamp.Demo
         public static CampState Decode(string json)
         {
             var state = JsonUtility.FromJson<CampState>(json);
+            if (state != null)
+            {
+                state.Wagers ??= new List<CampWager>();
+                if (state.Wagers.Count > 1) throw new InvalidOperationException("存档包含多个活动赌桌，已保留原档。");
+            }
             // Additive v0.3 checkpoint migration: A worlds predate finite mines.
             if (state != null && !state.MineInitialized)
             {
